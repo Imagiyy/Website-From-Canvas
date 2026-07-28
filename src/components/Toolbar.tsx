@@ -1,0 +1,257 @@
+import React from "react";
+import { useCanvasStore } from "../store/canvasStore";
+import "./Toolbar.css";
+
+interface Props {
+  onImageUploadClick?: () => void;
+}
+
+export const Toolbar: React.FC<Props> = ({ onImageUploadClick }) => {
+  const activeTool = useCanvasStore((s) => s.activeTool);
+  const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
+  const past = useCanvasStore((s) => s.past);
+  const future = useCanvasStore((s) => s.future);
+  const nodes = useCanvasStore((s) => s.nodes);
+
+  const setActiveTool = useCanvasStore((s) => s.setActiveTool);
+  const resetView = useCanvasStore((s) => s.resetView);
+  const undo = useCanvasStore((s) => s.undo);
+  const redo = useCanvasStore((s) => s.redo);
+  const bringToFront = useCanvasStore((s) => s.bringToFront);
+  const moveForward = useCanvasStore((s) => s.moveForward);
+  const moveBackward = useCanvasStore((s) => s.moveBackward);
+  const sendToBack = useCanvasStore((s) => s.sendToBack);
+  const groupSelected = useCanvasStore((s) => s.groupSelected);
+  const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
+  const deleteSelected = useCanvasStore((s) => s.deleteSelected);
+
+  const hasSelection = selectedNodeIds.size > 0;
+  const singleSelection = selectedNodeIds.size === 1;
+  const canGroup = selectedNodeIds.size >= 2;
+  const canUngroup = Array.from(selectedNodeIds).some(
+    (id) => nodes[id]?.type === "group"
+  );
+
+  const handleImageToolClick = () => {
+    setActiveTool("image");
+    if (onImageUploadClick) {
+      onImageUploadClick();
+    }
+  };
+
+  return (
+    <div className="toolbar">
+      {/* Tools Section */}
+      <div className="toolbar__section">
+        <span className="toolbar__label">Tools</span>
+
+        {/* Select */}
+        <button
+          className={`toolbar__btn ${activeTool === "select" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("select")}
+          title="Select (V)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 1L3 12.5L6.5 9L10.5 15L12.5 14L8.5 8L13 7.5L3 1Z" fill="currentColor" />
+          </svg>
+          <span>Select</span>
+        </button>
+
+        {/* Rectangle */}
+        <button
+          className={`toolbar__btn ${activeTool === "rectangle" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("rectangle")}
+          title="Rectangle (R)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          <span>Rectangle</span>
+        </button>
+
+        {/* Text */}
+        <button
+          className={`toolbar__btn ${activeTool === "text" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("text")}
+          title="Text (T)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3H13M8 3V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span>Text</span>
+        </button>
+
+        {/* Image */}
+        <button
+          className={`toolbar__btn ${activeTool === "image" ? "toolbar__btn--active" : ""}`}
+          onClick={handleImageToolClick}
+          title="Image (I)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="2.5" width="13" height="11" rx="1" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="5" cy="5.5" r="1.5" fill="currentColor" />
+            <path d="M2 12L6 8L9.5 11.5L11.5 9.5L14 12" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+          <span>Image</span>
+        </button>
+
+        {/* Line */}
+        <button
+          className={`toolbar__btn ${activeTool === "line" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("line")}
+          title="Line (L)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <span>Line</span>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
+
+      {/* Undo / Redo */}
+      <div className="toolbar__section">
+        <button
+          className="toolbar__btn"
+          onClick={undo}
+          disabled={past.length === 0}
+          title="Undo (Ctrl+Z)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8H12C13.1 8 14 8.9 14 10C14 11.1 13.1 12 12 12H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M6 5L3 8L6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          className="toolbar__btn"
+          onClick={redo}
+          disabled={future.length === 0}
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M13 8H4C2.9 8 2 8.9 2 10C2 11.1 2.9 12 4 12H7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M10 5L13 8L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
+
+      {/* Grouping Section */}
+      <div className="toolbar__section">
+        <button
+          className="toolbar__btn"
+          onClick={groupSelected}
+          disabled={!canGroup}
+          title="Group (Ctrl+G)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3 2" />
+            <rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor" opacity="0.6" />
+          </svg>
+          <span>Group</span>
+        </button>
+        <button
+          className="toolbar__btn"
+          onClick={ungroupSelected}
+          disabled={!canUngroup}
+          title="Ungroup (Ctrl+Shift+G)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="1.5" width="6" height="6" rx="1" fill="currentColor" opacity="0.6" />
+            <rect x="8.5" y="8.5" width="6" height="6" rx="1" fill="currentColor" opacity="0.6" />
+          </svg>
+          <span>Ungroup</span>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
+
+      {/* Layer Z-Order Section */}
+      <div className="toolbar__section">
+        <span className="toolbar__label">Layer</span>
+        <button
+          className="toolbar__btn"
+          onClick={bringToFront}
+          disabled={!singleSelection}
+          title="Bring to Front"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="6" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.4" />
+            <rect x="5" y="2" width="8" height="8" rx="1" fill="currentColor" opacity="0.9" />
+          </svg>
+        </button>
+        <button
+          className="toolbar__btn"
+          onClick={moveForward}
+          disabled={!singleSelection}
+          title="Move Forward"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 3L4 7H12L8 3Z" fill="currentColor" />
+            <rect x="6.5" y="7" width="3" height="6" fill="currentColor" />
+          </svg>
+        </button>
+        <button
+          className="toolbar__btn"
+          onClick={moveBackward}
+          disabled={!singleSelection}
+          title="Move Backward"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 13L12 9H4L8 13Z" fill="currentColor" />
+            <rect x="6.5" y="3" width="3" height="6" fill="currentColor" />
+          </svg>
+        </button>
+        <button
+          className="toolbar__btn"
+          onClick={sendToBack}
+          disabled={!singleSelection}
+          title="Send to Back"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="5" y="6" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.4" />
+            <rect x="1" y="2" width="8" height="8" rx="1" fill="currentColor" opacity="0.9" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
+
+      {/* Delete */}
+      <div className="toolbar__section">
+        <button
+          className="toolbar__btn toolbar__btn--danger"
+          onClick={deleteSelected}
+          disabled={!hasSelection}
+          title="Delete (Del)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M5 3V2.5C5 1.67 5.67 1 6.5 1H9.5C10.33 1 11 1.67 11 2.5V3" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M2 3H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M3.5 3L4.2 13.5C4.24 14.05 4.7 14.5 5.25 14.5H10.75C11.3 14.5 11.76 14.05 11.8 13.5L12.5 3" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        </button>
+      </div>
+
+      {/* View Reset */}
+      <div className="toolbar__spacer" />
+      <div className="toolbar__section">
+        <button className="toolbar__btn" onClick={resetView} title="Reset View">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+            <line x1="8" y1="1" x2="8" y2="4" stroke="currentColor" strokeWidth="1.2" />
+            <line x1="8" y1="12" x2="8" y2="15" stroke="currentColor" strokeWidth="1.2" />
+            <line x1="1" y1="8" x2="4" y2="8" stroke="currentColor" strokeWidth="1.2" />
+            <line x1="12" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+          <span>Reset View</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Toolbar;
