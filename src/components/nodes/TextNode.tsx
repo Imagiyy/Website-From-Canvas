@@ -78,6 +78,11 @@ export const TextNode: React.FC<Props> = React.memo(({ node, isEditing = false }
           data-node-id={node.id}
           contentEditable={isEditing}
           suppressContentEditableWarning
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setEditingNode(node.id);
+          }}
+          onPointerDown={isEditing ? (e) => e.stopPropagation() : undefined}
           onBlur={commitText}
           onKeyDown={isEditing ? handleKeyDown : undefined}
           style={{
