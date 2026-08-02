@@ -10,6 +10,7 @@ import type {
   TextContent,
   ImageContent,
   AlignmentGuide,
+  BreakpointKey,
 } from "../types/canvas";
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,7 @@ interface CanvasStoreState {
   // ---- Non-undoable state ----
   viewport: Viewport;
   activeTool: ActiveTool;
+  activeBreakpoint: import("../types/canvas").BreakpointKey;
   clipboard: CanvasNode[] | null; // Array of nodes (to support copying groups or multi-selections)
   editingNodeId: NodeId | null; // Text node currently being edited inline
   alignmentGuides: AlignmentGuide[];
@@ -43,6 +45,9 @@ interface CanvasStoreState {
 }
 
 interface CanvasStoreActions {
+  // Breakpoint Switcher
+  setActiveBreakpoint: (bp: import("../types/canvas").BreakpointKey) => void;
+
   // Alignment Guides
   setAlignmentGuides: (guides: AlignmentGuide[]) => void;
   clearAlignmentGuides: () => void;
@@ -59,8 +64,10 @@ interface CanvasStoreActions {
   updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   deleteSelected: () => void;
 
-  // Align Actions for Selection
+  // Align & Distribute Actions for Selection
   alignSelected: (type: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => void;
+  distributeSelected: (direction: "horizontal" | "vertical") => void;
+  updateSelectedNodesStyle: (partial: Partial<import("../types/canvas").Style>) => void;
 
   // Selection
   selectNode: (id: NodeId | null, multiSelect?: boolean) => void;
@@ -213,11 +220,19 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   nextNumber: { ...DEFAULT_NEXT_NUMBER },
   viewport: { panX: 0, panY: 0, zoom: 1 },
   activeTool: "select",
+  activeBreakpoint: "desktop",
   clipboard: null,
   editingNodeId: null,
   alignmentGuides: [],
   past: [],
   future: [],
+
+  // -----------------------------------------------------------------------
+  // Breakpoints
+  // -----------------------------------------------------------------------
+  setActiveBreakpoint: (bp) => {
+    set({ activeBreakpoint: bp, editingNodeId: null });
+  },
 
   // -----------------------------------------------------------------------
   // Alignment Guides & Nudge
@@ -327,6 +342,45 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const node = state.nodes[id];
     if (!node) return;
     const snap = snapshot(state);
+
+    if (state.activeBreakpoint !== "desktop") {
+      const bp = state.activeBreakpoint;
+      const bpOverrides = node.breakpoints ?? {};
+      const currentOverride = bpOverrides[bp] ?? {};
+      const currentStyle = currentOverride.style ?? {};
+
+      set({
+        nodes: {
+          ...state.nodes,
+          [id]: {
+            ...node,
+            breakpoints: {
+              ...bpOverrides,
+              [bp]: {
+                ...currentOverride,
+                style: {
+                  ...currentStyle,
+                  ...partial,
+                  border: partial.border
+                    ? { ...currentStyle.border, ...partial.border }
+                    : currentStyle.border,
+                  typography: partial.typography
+                    ? { ...currentStyle.typography, ...partial.typography }
+                    : currentStyle.typography,
+                  shadow: partial.shadow
+                    ? { ...currentStyle.shadow, ...partial.shadow }
+                    : currentStyle.shadow,
+                },
+              },
+            },
+          },
+        },
+        past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+        future: [],
+      });
+      return;
+    }
+
     set({
       nodes: {
         ...state.nodes,
@@ -341,6 +395,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
             typography: partial.typography
               ? { ...node.style.typography, ...partial.typography }
               : node.style.typography,
+            shadow: partial.shadow
+              ? { ...node.style.shadow, ...partial.shadow }
+              : node.style.shadow,
           },
         },
       },
@@ -401,10 +458,126 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     });
   },
 
+  distributeSelected: (direction) => {
+    const state = get();
+    if (state.selectedNodeIds.size < 3) return;
+
+    const selectedNodes = Array.from(state.selectedNodeIds)
+      .map((id) => state.nodes[id])
+      .filter((n): n is CanvasNode => n !== undefined);
+
+    if (selectedNodes.length < 3) return;
+
+    const snap = snapshot(state);
+    const newNodes = { ...state.nodes };
+
+    if (direction === "horizontal") {
+      const sorted = [...selectedNodes].sort((a, b) => a.geometry.x - b.geometry.x);
+      const minX = sorted[0].geometry.x;
+      const maxRight = sorted[sorted.length - 1].geometry.x + sorted[sorted.length - 1].geometry.width;
+      const totalItemWidth = sorted.reduce((sum, n) => sum + n.geometry.width, 0);
+      const totalGap = (maxRight - minX) - totalItemWidth;
+      const gap = totalGap / (sorted.length - 1);
+
+      let currentX = minX;
+      sorted.forEach((node) => {
+        newNodes[node.id] = {
+          ...node,
+          geometry: { ...node.geometry, x: currentX },
+        };
+        currentX += node.geometry.width + gap;
+      });
+    } else {
+      const sorted = [...selectedNodes].sort((a, b) => a.geometry.y - b.geometry.y);
+      const minY = sorted[0].geometry.y;
+      const maxBottom = sorted[sorted.length - 1].geometry.y + sorted[sorted.length - 1].geometry.height;
+      const totalItemHeight = sorted.reduce((sum, n) => sum + n.geometry.height, 0);
+      const totalGap = (maxBottom - minY) - totalItemHeight;
+      const gap = totalGap / (sorted.length - 1);
+
+      let currentY = minY;
+      sorted.forEach((node) => {
+        newNodes[node.id] = {
+          ...node,
+          geometry: { ...node.geometry, y: currentY },
+        };
+        currentY += node.geometry.height + gap;
+      });
+    }
+
+    set({
+      nodes: newNodes,
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  updateSelectedNodesStyle: (partial) => {
+    const state = get();
+    if (state.selectedNodeIds.size === 0) return;
+
+    const snap = snapshot(state);
+    const newNodes = { ...state.nodes };
+
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes[id];
+      if (!node) return;
+      newNodes[id] = {
+        ...node,
+        style: {
+          ...node.style,
+          ...partial,
+          border: partial.border
+            ? { ...node.style.border, ...partial.border }
+            : node.style.border,
+          typography: partial.typography
+            ? { ...node.style.typography, ...partial.typography }
+            : node.style.typography,
+          shadow: partial.shadow
+            ? { ...node.style.shadow, ...partial.shadow }
+            : node.style.shadow,
+        },
+      };
+    });
+
+    set({
+      nodes: newNodes,
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
   updateNodeGeometry: (id, partial) => {
     const state = get();
     const node = state.nodes[id];
     if (!node) return;
+
+    if (state.activeBreakpoint !== "desktop") {
+      const bp = state.activeBreakpoint;
+      const bpOverrides = node.breakpoints ?? {};
+      const currentOverride = bpOverrides[bp] ?? {};
+      const currentGeom = currentOverride.geometry ?? {};
+
+      set({
+        nodes: {
+          ...state.nodes,
+          [id]: {
+            ...node,
+            breakpoints: {
+              ...bpOverrides,
+              [bp]: {
+                ...currentOverride,
+                geometry: {
+                  ...currentGeom,
+                  ...partial,
+                },
+              },
+            },
+          },
+        },
+      });
+      return;
+    }
 
     const newNodes = { ...state.nodes };
 

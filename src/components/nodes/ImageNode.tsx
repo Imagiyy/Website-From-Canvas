@@ -55,6 +55,9 @@ export const ImageNode: React.FC<Props> = React.memo(({ node }) => {
             opacity: style.opacity,
             borderRadius: `${style.cornerRadius ?? 0}px`,
             overflow: "hidden",
+            filter: style.shadow
+              ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
+              : undefined,
           }}
         >
           {imageContent.assetUrl ? (

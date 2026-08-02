@@ -4,9 +4,10 @@ import "./Toolbar.css";
 
 interface Props {
   onImageUploadClick?: () => void;
+  onExportClick?: () => void;
 }
 
-export const Toolbar: React.FC<Props> = ({ onImageUploadClick }) => {
+export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
   const past = useCanvasStore((s) => s.past);
@@ -39,8 +40,52 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick }) => {
     }
   };
 
+  const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
+  const setActiveBreakpoint = useCanvasStore((s) => s.setActiveBreakpoint);
+
   return (
     <div className="toolbar">
+      {/* Breakpoint Switcher Section */}
+      <div className="toolbar__section">
+        <span className="toolbar__label">View Mode</span>
+        <button
+          className={`toolbar__btn ${activeBreakpoint === "desktop" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveBreakpoint("desktop")}
+          title="Desktop Base View (Freeform)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="2.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M5 14.5H11M8 11.5V14.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <span>Desktop</span>
+        </button>
+
+        <button
+          className={`toolbar__btn ${activeBreakpoint === "tablet" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveBreakpoint("tablet")}
+          title="Tablet View (768px)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="2.5" y="1.5" width="11" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="8" cy="12.5" r="0.75" fill="currentColor" />
+          </svg>
+          <span>Tablet 768px</span>
+        </button>
+
+        <button
+          className={`toolbar__btn ${activeBreakpoint === "mobile" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveBreakpoint("mobile")}
+          title="Mobile View (375px)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="4" y="1.5" width="8" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="8" cy="12.5" r="0.75" fill="currentColor" />
+          </svg>
+          <span>Mobile 375px</span>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
       {/* Tools Section */}
       <div className="toolbar__section">
         <span className="toolbar__label">Tools</span>
@@ -235,7 +280,7 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick }) => {
         </button>
       </div>
 
-      {/* View Reset */}
+      {/* View Reset & Export */}
       <div className="toolbar__spacer" />
       <div className="toolbar__section">
         <button className="toolbar__btn" onClick={resetView} title="Reset View">
@@ -248,6 +293,18 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick }) => {
             <line x1="12" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.2" />
           </svg>
           <span>Reset View</span>
+        </button>
+
+        <button
+          className="toolbar__btn toolbar__btn--primary"
+          onClick={onExportClick}
+          title="Publish / Export Standalone Web App (HTML & CSS)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 13H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span>Publish / Export</span>
         </button>
       </div>
     </div>

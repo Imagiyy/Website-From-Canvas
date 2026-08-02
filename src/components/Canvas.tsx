@@ -4,8 +4,10 @@ import { useCanvasPointer } from "../hooks/useCanvasPointer";
 import { NodeRenderer } from "./nodes/NodeRenderer";
 import SelectionOverlay from "./SelectionOverlay";
 import AlignmentGuides from "./AlignmentGuides";
+import BreakpointFrame from "./BreakpointFrame";
 import Toolbar from "./Toolbar";
 import { useKeyboard } from "../hooks/useKeyboard";
+import { getEffectiveNodesMap } from "../utils/breakpoint";
 import "./Canvas.css";
 
 const ZOOM_FACTOR = 1.1;
@@ -15,6 +17,7 @@ export const Canvas: React.FC = () => {
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
   const viewport = useCanvasStore((s) => s.viewport);
   const activeTool = useCanvasStore((s) => s.activeTool);
+  const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
   const editingNodeId = useCanvasStore((s) => s.editingNodeId);
   const alignmentGuides = useCanvasStore((s) => s.alignmentGuides);
   const zoomAtPoint = useCanvasStore((s) => s.zoomAtPoint);
@@ -89,8 +92,11 @@ export const Canvas: React.FC = () => {
     e.target.value = "";
   };
 
+  // Resolve effective nodes for active breakpoint
+  const effectiveNodes = getEffectiveNodesMap(nodes, activeBreakpoint);
+
   // Filter top-level nodes for root SVG rendering
-  const topLevelNodes = Object.values(nodes)
+  const topLevelNodes = Object.values(effectiveNodes)
     .filter((n) => n.parentId === null)
     .sort((a, b) => a.order - b.order);
 
@@ -142,12 +148,18 @@ export const Canvas: React.FC = () => {
 
         {/* Camera transform group */}
         <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
+          {/* Breakpoint Visual Frame */}
+          <BreakpointFrame
+            activeBreakpoint={activeBreakpoint}
+            zoom={viewport.zoom}
+          />
+
           {/* Render all top-level nodes */}
           {topLevelNodes.map((node) => (
             <NodeRenderer
               key={node.id}
               node={node}
-              nodes={nodes}
+              nodes={effectiveNodes}
               editingNodeId={editingNodeId}
             />
           ))}
@@ -184,7 +196,7 @@ export const Canvas: React.FC = () => {
           {/* Selection overlay */}
           <SelectionOverlay
             selectedNodeIds={selectedNodeIds}
-            nodes={nodes}
+            nodes={effectiveNodes}
             zoom={viewport.zoom}
           />
 

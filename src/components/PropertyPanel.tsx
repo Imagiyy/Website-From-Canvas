@@ -1,19 +1,36 @@
 import React from "react";
-import type { CanvasNode, TypographyStyle, Style } from "../types/canvas";
+import type { CanvasNode, TypographyStyle, Style, ShadowStyle } from "../types/canvas";
 import { useCanvasStore } from "../store/canvasStore";
+import { getEffectiveNode } from "../utils/breakpoint";
 import "./PropertyPanel.css";
+
+const QUICK_SWATCHES = [
+  { name: "Transparent", value: "transparent" },
+  { name: "White", value: "#FFFFFF" },
+  { name: "Slate", value: "#64748B" },
+  { name: "Dark", value: "#1E293B" },
+  { name: "Blue", value: "#2563EB" },
+  { name: "Indigo", value: "#6366F1" },
+  { name: "Purple", value: "#8B5CF6" },
+  { name: "Emerald", value: "#10B981" },
+  { name: "Amber", value: "#F59E0B" },
+  { name: "Red", value: "#EF4444" },
+];
 
 export const PropertyPanel: React.FC = () => {
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
   const nodes = useCanvasStore((s) => s.nodes);
+  const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
   const updateNodeName = useCanvasStore((s) => s.updateNodeName);
   const updateNodeGeometry = useCanvasStore((s) => s.updateNodeGeometry);
   const updateNodeStyle = useCanvasStore((s) => s.updateNodeStyle);
+  const updateSelectedNodesStyle = useCanvasStore((s) => s.updateSelectedNodesStyle);
   const updateImageFit = useCanvasStore((s) => s.updateImageFit);
   const alignSelected = useCanvasStore((s) => s.alignSelected);
+  const distributeSelected = useCanvasStore((s) => s.distributeSelected);
 
   const selectedList = Array.from(selectedNodeIds)
-    .map((id) => nodes[id])
+    .map((id) => (nodes[id] ? getEffectiveNode(nodes[id], activeBreakpoint) : undefined))
     .filter((n): n is CanvasNode => n !== undefined);
 
   // Case 1: Empty selection
@@ -45,76 +62,134 @@ export const PropertyPanel: React.FC = () => {
           <span className="property-panel__badge">{selectedList.length} Selected</span>
         </div>
 
-        {/* Alignment Actions */}
-        <div className="property-panel__section">
-          <span className="property-panel__section-title">Align Selection</span>
-          <div className="property-panel__btn-group">
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("left")}
-              title="Align Left"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="2" y1="2" x2="2" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="4" y="4" width="8" height="3" fill="currentColor" />
-                <rect x="4" y="9" width="5" height="3" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("centerX")}
-              title="Align Center X"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="3" y="4" width="10" height="3" fill="currentColor" />
-                <rect x="5.5" y="9" width="5" height="3" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("right")}
-              title="Align Right"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="14" y1="2" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="4" y="4" width="8" height="3" fill="currentColor" />
-                <rect x="7" y="9" width="5" height="3" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("top")}
-              title="Align Top"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="4" y="4" width="3" height="8" fill="currentColor" />
-                <rect x="9" y="4" width="3" height="5" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("centerY")}
-              title="Align Center Y"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="4" y="3" width="3" height="10" fill="currentColor" />
-                <rect x="9" y="5.5" width="3" height="5" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              className="property-panel__icon-btn"
-              onClick={() => alignSelected("bottom")}
-              title="Align Bottom"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                <rect x="4" y="4" width="3" height="8" fill="currentColor" />
-                <rect x="9" y="7" width="3" height="5" fill="currentColor" />
-              </svg>
-            </button>
+        <div className="property-panel__content">
+          {/* Alignment Actions */}
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Align Selection</span>
+            <div className="property-panel__btn-group">
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("left")}
+                title="Align Left"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="2" y1="2" x2="2" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="4" y="4" width="8" height="3" fill="currentColor" />
+                  <rect x="4" y="9" width="5" height="3" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("centerX")}
+                title="Align Center X"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="3" y="4" width="10" height="3" fill="currentColor" />
+                  <rect x="5.5" y="9" width="5" height="3" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("right")}
+                title="Align Right"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="14" y1="2" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="4" y="4" width="8" height="3" fill="currentColor" />
+                  <rect x="7" y="9" width="5" height="3" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("top")}
+                title="Align Top"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="4" y="4" width="3" height="8" fill="currentColor" />
+                  <rect x="9" y="4" width="3" height="5" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("centerY")}
+                title="Align Center Y"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="4" y="3" width="3" height="10" fill="currentColor" />
+                  <rect x="9" y="5.5" width="3" height="5" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="property-panel__icon-btn"
+                onClick={() => alignSelected("bottom")}
+                title="Align Bottom"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                  <rect x="4" y="4" width="3" height="8" fill="currentColor" />
+                  <rect x="9" y="7" width="3" height="5" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Distribute Spacing (3+ Items) */}
+          {selectedList.length >= 3 && (
+            <div className="property-panel__section">
+              <span className="property-panel__section-title">Distribute Spacing</span>
+              <div className="property-panel__distribute-group">
+                <button
+                  className="property-panel__btn"
+                  onClick={() => distributeSelected("horizontal")}
+                >
+                  ↔ Horizontal Gap
+                </button>
+                <button
+                  className="property-panel__btn"
+                  onClick={() => distributeSelected("vertical")}
+                >
+                  ↕ Vertical Gap
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Style Section */}
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Bulk Appearance</span>
+            <div className="property-panel__row">
+              <label>Fill Color</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value="#2563EB"
+                  onChange={(e) => updateSelectedNodesStyle({ fill: e.target.value })}
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  placeholder="#HEX"
+                  onChange={(e) => updateSelectedNodesStyle({ fill: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Opacity</label>
+              <div className="property-panel__range-wrapper">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  defaultValue="1"
+                  onChange={(e) => updateSelectedNodesStyle({ opacity: Number(e.target.value) })}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -157,6 +232,22 @@ export const PropertyPanel: React.FC = () => {
     });
   };
 
+  const handleShadowChange = (partialShadow: Partial<ShadowStyle> | null) => {
+    if (partialShadow === null) {
+      updateNodeStyle(node.id, { shadow: undefined });
+      return;
+    }
+    const currentShadow = node.style.shadow ?? {
+      color: "rgba(0, 0, 0, 0.4)",
+      x: 0,
+      y: 4,
+      blur: 12,
+    };
+    updateNodeStyle(node.id, {
+      shadow: { ...currentShadow, ...partialShadow },
+    });
+  };
+
   const handleTypoChange = (partialTypo: Partial<TypographyStyle>) => {
     const currentTypo = node.style.typography ?? {
       fontFamily: "Inter, sans-serif",
@@ -171,7 +262,6 @@ export const PropertyPanel: React.FC = () => {
     });
   };
 
-  const textContent = node.content?.kind === "text" ? node.content : null;
   const imageContent = node.content?.kind === "image" ? node.content : null;
 
   return (
@@ -184,7 +274,14 @@ export const PropertyPanel: React.FC = () => {
           value={node.name}
           onChange={handleNameChange}
         />
-        <span className="property-panel__type-badge">{node.type}</span>
+        <div className="property-panel__badges">
+          {activeBreakpoint !== "desktop" && (
+            <span className="property-panel__override-badge">
+              {activeBreakpoint.toUpperCase()} OVERRIDE
+            </span>
+          )}
+          <span className="property-panel__type-badge">{node.type}</span>
+        </div>
       </div>
 
       <div className="property-panel__content">
@@ -240,22 +337,42 @@ export const PropertyPanel: React.FC = () => {
           <div className="property-panel__section">
             <span className="property-panel__section-title">Fill & Appearance</span>
             {node.type === "rectangle" && (
-              <div className="property-panel__row">
-                <label>Fill Color</label>
-                <div className="property-panel__color-wrapper">
-                  <input
-                    type="color"
-                    value={style.fill && style.fill !== "transparent" ? style.fill : "#E5E7EB"}
-                    onChange={(e) => handleFillChange(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    className="property-panel__hex-input"
-                    value={style.fill ?? "#E5E7EB"}
-                    onChange={(e) => handleFillChange(e.target.value)}
-                  />
+              <>
+                <div className="property-panel__row">
+                  <label>Fill Color</label>
+                  <div className="property-panel__color-wrapper">
+                    <input
+                      type="color"
+                      value={style.fill && style.fill !== "transparent" ? style.fill : "#E5E7EB"}
+                      onChange={(e) => handleFillChange(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="property-panel__hex-input"
+                      value={style.fill ?? "#E5E7EB"}
+                      onChange={(e) => handleFillChange(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+
+                {/* Palette Swatches */}
+                <div className="property-panel__swatches">
+                  {QUICK_SWATCHES.map((swatch) => (
+                    <button
+                      key={swatch.value}
+                      className={`property-panel__swatch ${
+                        style.fill === swatch.value ? "property-panel__swatch--active" : ""
+                      }`}
+                      style={{
+                        background: swatch.value === "transparent" ? "#16162A" : swatch.value,
+                        border: swatch.value === "transparent" ? "1px dashed #5A5A78" : "none",
+                      }}
+                      title={swatch.name}
+                      onClick={() => handleFillChange(swatch.value)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
 
             <div className="property-panel__row">
@@ -288,7 +405,7 @@ export const PropertyPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Border Settings */}
+        {/* Border / Stroke Settings */}
         {node.type !== "group" && (
           <div className="property-panel__section">
             <span className="property-panel__section-title">Border / Stroke</span>
@@ -332,6 +449,69 @@ export const PropertyPanel: React.FC = () => {
                 <option value="dotted">Dotted</option>
               </select>
             </div>
+          </div>
+        )}
+
+        {/* Drop Shadow Settings */}
+        {node.type !== "group" && (
+          <div className="property-panel__section">
+            <div className="property-panel__section-header">
+              <span className="property-panel__section-title">Drop Shadow</span>
+              <input
+                type="checkbox"
+                checked={!!style.shadow}
+                onChange={(e) => handleShadowChange(e.target.checked ? {} : null)}
+              />
+            </div>
+
+            {style.shadow && (
+              <>
+                <div className="property-panel__row">
+                  <label>Color</label>
+                  <div className="property-panel__color-wrapper">
+                    <input
+                      type="color"
+                      value={style.shadow.color.startsWith("#") ? style.shadow.color : "#000000"}
+                      onChange={(e) => handleShadowChange({ color: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      className="property-panel__hex-input"
+                      value={style.shadow.color}
+                      onChange={(e) => handleShadowChange({ color: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="property-panel__grid">
+                  <div className="property-panel__field">
+                    <label>X</label>
+                    <input
+                      type="number"
+                      value={style.shadow.x}
+                      onChange={(e) => handleShadowChange({ x: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="property-panel__field">
+                    <label>Y</label>
+                    <input
+                      type="number"
+                      value={style.shadow.y}
+                      onChange={(e) => handleShadowChange({ y: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="property-panel__field property-panel__field--full">
+                    <label>Blur</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={style.shadow.blur}
+                      onChange={(e) => handleShadowChange({ blur: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

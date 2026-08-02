@@ -104,6 +104,9 @@ export const TextNode: React.FC<Props> = React.memo(({ node, isEditing = false }
             userSelect: isEditing ? "text" : "none",
             boxSizing: "border-box",
             padding: "2px 4px",
+            filter: style.shadow
+              ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
+              : undefined,
           }}
         >
           {textValue}

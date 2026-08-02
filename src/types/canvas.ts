@@ -1,9 +1,17 @@
-// CanvasSite data model — Phase 0 Step 3
-// Extended to support rectangle, text, image, line, group element types + alignment guides.
+// CanvasSite data model — Phase 1 Step 1 (Responsive Breakpoints)
+// Extended to support rectangle, text, image, line, group + alignment guides + responsive overrides.
 
 export type NodeId = string;
 
 export type ElementType = "rectangle" | "text" | "image" | "line" | "group";
+
+export type BreakpointKey = "desktop" | "tablet" | "mobile";
+
+export const BREAKPOINT_WIDTHS: Record<BreakpointKey, number | null> = {
+  desktop: null,
+  tablet: 768,
+  mobile: 375,
+};
 
 export interface Geometry {
   x: number;
@@ -22,6 +30,13 @@ export interface TypographyStyle {
   lineHeight: number;
 }
 
+export interface ShadowStyle {
+  color: string;
+  x: number;
+  y: number;
+  blur: number;
+}
+
 export interface Style {
   fill?: string; // hex or "transparent"
   opacity: number; // 0-1
@@ -32,6 +47,7 @@ export interface Style {
   };
   cornerRadius?: number;
   typography?: TypographyStyle;
+  shadow?: ShadowStyle;
 }
 
 export interface TextContent {
@@ -45,6 +61,11 @@ export interface ImageContent {
   fit: "cover" | "contain" | "fill";
 }
 
+export interface NodeOverride {
+  geometry?: Partial<Geometry>;
+  style?: Partial<Style>;
+}
+
 export interface CanvasNode {
   id: NodeId;
   parentId: NodeId | null; // null = top-level; non-null = inside a group
@@ -55,6 +76,7 @@ export interface CanvasNode {
   style: Style;
   content?: TextContent | ImageContent;
   children?: NodeId[]; // only present if type === "group"
+  breakpoints?: Partial<Record<"tablet" | "mobile", NodeOverride>>;
 }
 
 // The canvas holds a flat map of nodes, not a nested tree:

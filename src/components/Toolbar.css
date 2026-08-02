@@ -66,6 +66,16 @@
   cursor: not-allowed;
 }
 
+.toolbar__btn--primary {
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover) !important;
+  }
+}
+
 .toolbar__btn--danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger-hover);

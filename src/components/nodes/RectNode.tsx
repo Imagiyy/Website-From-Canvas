@@ -28,6 +28,10 @@ export const RectNode: React.FC<Props> = React.memo(({ node }) => {
     }
   }
 
+  const filterStyle = style.shadow
+    ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
+    : undefined;
+
   return (
     <rect
       data-node-id={node.id}
@@ -43,7 +47,7 @@ export const RectNode: React.FC<Props> = React.memo(({ node }) => {
       strokeWidth={style.border?.width ?? 0}
       strokeDasharray={strokeDasharray}
       transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}
-      style={{ cursor: "move" }}
+      style={{ cursor: "move", filter: filterStyle }}
     />
   );
 });
