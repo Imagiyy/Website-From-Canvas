@@ -2,6 +2,7 @@ import { useRef, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import { computeSnapping } from "../utils/snapping";
 import { getEffectiveNode, getEffectiveNodesMap } from "../utils/breakpoint";
+import { processFreehandPoints } from "../utils/pathUtils";
 
 // ---------------------------------------------------------------------------
 // Interaction Modes
@@ -9,8 +10,14 @@ import { getEffectiveNode, getEffectiveNodesMap } from "../utils/breakpoint";
 type InteractionMode =
   | { type: "idle" }
   | { type: "pan"; startScreenX: number; startScreenY: number }
-  | { type: "draw-rect"; startCanvasX: number; startCanvasY: number }
-  | { type: "draw-line"; startCanvasX: number; startCanvasY: number }
+  | { type: "draw-rect"; startCanvasX: number; startCanvasY: number; hitNodeId?: string }
+  | { type: "draw-line"; startCanvasX: number; startCanvasY: number; hitNodeId?: string }
+  | {
+      type: "draw-path";
+      tool: "brush" | "pencil";
+      points: { x: number; y: number }[];
+      hitNodeId?: string;
+    }
   | {
       type: "move";
       nodeId: string;
@@ -50,11 +57,13 @@ export interface CanvasPointerHandlers {
 }
 
 export interface DrawPreview {
-  kind: "rect" | "line";
+  kind: "rect" | "line" | "path";
   x: number;
   y: number;
   width: number;
   height: number;
+  pathData?: string;
+  tool?: "brush" | "pencil";
 }
 
 const MIN_SIZE = 4;
@@ -217,50 +226,93 @@ export function useCanvasPointer(
       // 3. Check Node Hit
       const nodeId = hitNodeId;
       if (nodeId && store.nodes[nodeId]) {
-        let targetNode = getEffectiveNode(store.nodes[nodeId], store.activeBreakpoint);
-
-        // Double-click interaction logic:
-        if (e.detail === 2) {
-          if (targetNode.type === "text") {
-            store.setEditingNode(targetNode.id);
-            return;
-          }
-          // If double-clicking a group (or node in group), select the child directly
-          if (targetNode.type === "group" && targetNode.children && targetNode.children.length > 0) {
-            store.selectNode(targetNode.children[0]);
-            return;
-          }
+        // If Fill Bucket tool active, flood fill target node
+        if (store.activeTool === "fill") {
+          store.fillNodeColor(nodeId, store.activeColor);
+          return;
+        }
+        // If Eraser tool active, delete target node
+        if (store.activeTool === "eraser") {
+          store.deleteNode(nodeId);
+          return;
         }
 
-        // If node is inside a group and the group is not yet selected, select top parent group
-        let parentToSelect = targetNode;
-        while (parentToSelect.parentId && store.nodes[parentToSelect.parentId]) {
-          const parentGroup = getEffectiveNode(store.nodes[parentToSelect.parentId], store.activeBreakpoint);
-          // If the group is already selected, allow selecting the child directly
-          if (store.selectedNodeIds.has(parentGroup.id)) {
-            break;
+        // Select tool: immediately select + move
+        if (store.activeTool === "select") {
+          let targetNode = getEffectiveNode(store.nodes[nodeId], store.activeBreakpoint);
+
+          // Double-click interaction logic:
+          if (e.detail === 2) {
+            if (targetNode.type === "text") {
+              store.setEditingNode(targetNode.id);
+              return;
+            }
+            if (targetNode.type === "group" && targetNode.children && targetNode.children.length > 0) {
+              store.selectNode(targetNode.children[0]);
+              return;
+            }
           }
-          parentToSelect = parentGroup;
+
+          // If node is inside a group and the group is not yet selected, select top parent group
+          let parentToSelect = targetNode;
+          while (parentToSelect.parentId && store.nodes[parentToSelect.parentId]) {
+            const parentGroup = getEffectiveNode(store.nodes[parentToSelect.parentId], store.activeBreakpoint);
+            if (store.selectedNodeIds.has(parentGroup.id)) {
+              break;
+            }
+            parentToSelect = parentGroup;
+          }
+
+          store.selectNode(parentToSelect.id, e.shiftKey);
+
+          const effectiveParent = getEffectiveNode(parentToSelect, store.activeBreakpoint);
+
+          store.pushUndo();
+          modeRef.current = {
+            type: "move",
+            nodeId: effectiveParent.id,
+            startCanvasX: canvasX,
+            startCanvasY: canvasY,
+            startNodeX: effectiveParent.geometry.x,
+            startNodeY: effectiveParent.geometry.y,
+          };
+          return;
         }
 
-        store.selectNode(parentToSelect.id, e.shiftKey);
-
-        const effectiveParent = getEffectiveNode(parentToSelect, store.activeBreakpoint);
-
-        store.pushUndo();
-        modeRef.current = {
-          type: "move",
-          nodeId: effectiveParent.id,
-          startCanvasX: canvasX,
-          startCanvasY: canvasY,
-          startNodeX: effectiveParent.geometry.x,
-          startNodeY: effectiveParent.geometry.y,
-        };
-        return;
+        // For drawing tools hitting a node: start drawing but remember the hit node.
+        // If the user just taps (doesn't drag), we'll select the node on pointerUp.
       }
 
-      // 4. Hit Empty Canvas Space — Branch on Active Tool
+      // Resolve the hit node id for tap-to-select fallback (undefined if no node was hit)
+      const tapSelectNodeId = (nodeId && store.nodes[nodeId]) ? nodeId : undefined;
+
+      // 4. Branch on Active Tool (start drawing)
       switch (store.activeTool) {
+        case "brush":
+        case "pencil": {
+          const tool = store.activeTool;
+          const initialPts = [{ x: canvasX, y: canvasY }];
+          modeRef.current = {
+            type: "draw-path",
+            tool,
+            points: initialPts,
+            hitNodeId: tapSelectNodeId,
+          };
+          const { pathData, bounds } = processFreehandPoints(initialPts);
+          drawPreviewRef.current = {
+            kind: "path",
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            pathData,
+            tool,
+          };
+          onDrawPreviewUpdate();
+          break;
+        }
+
+        case "text":
         case "polygon":
         case "circle":
         case "curve":
@@ -271,6 +323,7 @@ export function useCanvasPointer(
             type: "draw-rect",
             startCanvasX: canvasX,
             startCanvasY: canvasY,
+            hitNodeId: tapSelectNodeId,
           };
           drawPreviewRef.current = {
             kind: "rect",
@@ -287,6 +340,7 @@ export function useCanvasPointer(
             type: "draw-line",
             startCanvasX: canvasX,
             startCanvasY: canvasY,
+            hitNodeId: tapSelectNodeId,
           };
           drawPreviewRef.current = {
             kind: "line",
@@ -298,19 +352,12 @@ export function useCanvasPointer(
           break;
         }
 
-        case "text": {
-          store.createText(canvasX, canvasY);
-          store.setActiveTool("select");
-          break;
-        }
-
         case "image": {
           if (fileInputRef?.current) {
             fileInputRef.current.dataset.clickX = String(canvasX);
             fileInputRef.current.dataset.clickY = String(canvasY);
             fileInputRef.current.click();
           }
-          store.setActiveTool("select");
           break;
         }
 
@@ -362,6 +409,22 @@ export function useCanvasPointer(
           const w = Math.abs(canvasX - mode.startCanvasX);
           const h = Math.abs(canvasY - mode.startCanvasY);
           drawPreviewRef.current = { kind: "rect", x, y, width: w, height: h };
+          onDrawPreviewUpdate();
+          break;
+        }
+
+        case "draw-path": {
+          mode.points.push({ x: canvasX, y: canvasY });
+          const { pathData, bounds } = processFreehandPoints(mode.points);
+          drawPreviewRef.current = {
+            kind: "path",
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            pathData,
+            tool: mode.tool,
+          };
           onDrawPreviewUpdate();
           break;
         }
@@ -555,37 +618,60 @@ export function useCanvasPointer(
       const mode = modeRef.current;
       const store = useCanvasStore.getState();
 
+      // Helper: tap-to-select fallback — if user tapped without dragging, select the node under cursor
+      const tryTapSelect = (hitId?: string) => {
+        if (!hitId || !store.nodes[hitId]) return;
+        let targetNode = getEffectiveNode(store.nodes[hitId], store.activeBreakpoint);
+        let parentToSelect = targetNode;
+        while (parentToSelect.parentId && store.nodes[parentToSelect.parentId]) {
+          const parentGroup = getEffectiveNode(store.nodes[parentToSelect.parentId], store.activeBreakpoint);
+          if (store.selectedNodeIds.has(parentGroup.id)) break;
+          parentToSelect = parentGroup;
+        }
+        store.selectNode(parentToSelect.id);
+      };
+
       if (mode.type === "draw-rect") {
         const preview = drawPreviewRef.current;
-        if (preview && preview.kind === "rect") {
-          const MIN = 10;
-          const w = preview.width < MIN ? 120 : preview.width;
-          const h = preview.height < MIN ? 120 : preview.height;
-          const px = preview.width < MIN ? mode.startCanvasX - 60 : preview.x;
-          const py = preview.height < MIN ? mode.startCanvasY - 60 : preview.y;
-
+        const MIN = 10;
+        const dragged = preview && preview.kind === "rect" && preview.width >= MIN && preview.height >= MIN;
+        if (dragged) {
           switch (store.activeTool) {
+            case "text":
+              store.createText(preview.x, preview.y, preview.width, preview.height);
+              break;
             case "polygon":
-              store.createPolygon(px, py, w, h);
+              store.createPolygon(preview.x, preview.y, preview.width, preview.height);
               break;
             case "circle":
-              store.createCircle(px, py, w, h);
+              store.createCircle(preview.x, preview.y, preview.width, preview.height);
               break;
             case "curve":
-              store.createCurve(px, py, w, h);
+              store.createCurve(preview.x, preview.y, preview.width, preview.height);
               break;
             case "star":
-              store.createStar(px, py, w, h);
+              store.createStar(preview.x, preview.y, preview.width, preview.height);
               break;
             case "shape3d":
-              store.createShape3D(px, py, w, h);
+              store.createShape3D(preview.x, preview.y, preview.width, preview.height);
               break;
             case "rectangle":
             default:
-              store.createRectangle(px, py, w, h);
+              store.createRectangle(preview.x, preview.y, preview.width, preview.height);
               break;
           }
-          store.setActiveTool("select");
+        } else {
+          // No drag — tap-to-select fallback
+          tryTapSelect(mode.hitNodeId);
+        }
+        drawPreviewRef.current = null;
+      } else if (mode.type === "draw-path") {
+        const { pathData, bounds } = processFreehandPoints(mode.points);
+        if (pathData && bounds.width > 2 && bounds.height > 2) {
+          store.createPathNode(mode.tool, pathData, bounds);
+        } else {
+          // No meaningful stroke — tap-to-select fallback
+          tryTapSelect(mode.hitNodeId);
         }
         drawPreviewRef.current = null;
       } else if (mode.type === "draw-line") {
@@ -597,7 +683,9 @@ export function useCanvasPointer(
             preview.x + preview.width,
             preview.y + preview.height
           );
-          store.setActiveTool("select");
+        } else {
+          // No drag — tap-to-select fallback
+          tryTapSelect(mode.hitNodeId);
         }
         drawPreviewRef.current = null;
       }

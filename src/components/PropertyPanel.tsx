@@ -743,6 +743,56 @@ export const PropertyPanel: React.FC = () => {
           </div>
         )}
 
+        {/* Freehand Brush & Pencil Settings */}
+        {(node.type === "brush" || node.type === "pencil") && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Stroke & Size</span>
+            <div className="property-panel__row">
+              <label>Stroke Size ({style.brushSize ?? (node.type === "pencil" ? 2 : 12)}px)</label>
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value={style.brushSize ?? (node.type === "pencil" ? 2 : 12)}
+                onChange={(e) => updateNodeStyle(node.id, { brushSize: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={style.brushSize ?? (node.type === "pencil" ? 2 : 12)}
+                onChange={(e) => updateNodeStyle(node.id, { brushSize: Number(e.target.value) })}
+                className="property-panel__num-input"
+              />
+            </div>
+            <div className="property-panel__row">
+              <label>Stroke Color</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value={style.border?.color ?? style.fill ?? "#3B82F6"}
+                  onChange={(e) =>
+                    updateNodeStyle(node.id, {
+                      border: { ...(style.border ?? { width: 2, style: "solid" }), color: e.target.value },
+                    })
+                  }
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  value={style.border?.color ?? style.fill ?? "#3B82F6"}
+                  onChange={(e) =>
+                    updateNodeStyle(node.id, {
+                      border: { ...(style.border ?? { width: 2, style: "solid" }), color: e.target.value },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 3D Visual Design Settings (All Shapes) */}
         <div className="property-panel__section">
           <span className="property-panel__section-title">3D Extrude & Depth</span>

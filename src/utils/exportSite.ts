@@ -151,6 +151,14 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
       const sideColor = node.style.color3d ?? "#6D28D9";
       return `${indent}<div id="node-${nid}" class="canvas-element shape3d-node" style="box-shadow: ${depth * 0.4}px ${depth * 0.4}px 0px ${sideColor}; background: ${mainColor};"></div>`;
     }
+
+    case "brush":
+    case "pencil": {
+      const strokeColor = node.style.border?.color ?? node.style.fill ?? "#3B82F6";
+      const strokeWidth = node.style.brushSize ?? (node.type === "pencil" ? 2 : 12);
+      const pathData = node.pathData ?? "";
+      return `${indent}<div id="node-${nid}" class="canvas-element path-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" />\n${indent}  </svg>\n${indent}</div>`;
+    }
   }
 }
 

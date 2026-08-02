@@ -26,6 +26,8 @@ export const Canvas: React.FC = () => {
   const updateNodeContent = useCanvasStore((s) => s.updateNodeContent);
   const setEditingNode = useCanvasStore((s) => s.setEditingNode);
 
+  const activeColor = useCanvasStore((s) => s.activeColor);
+
   // Resolve effective nodes for active breakpoint
   const effectiveNodes = getEffectiveNodesMap(nodes, activeBreakpoint);
 
@@ -260,6 +262,21 @@ export const Canvas: React.FC = () => {
                 stroke="#2563EB"
                 strokeWidth={1.5 / viewport.zoom}
                 strokeDasharray={`${4 / viewport.zoom} ${3 / viewport.zoom}`}
+              />
+            </g>
+          )}
+
+          {/* Draw preview for freehand brush & pencil */}
+          {preview && preview.kind === "path" && preview.pathData && (
+            <g transform={`translate(${preview.x}, ${preview.y})`} pointerEvents="none">
+              <path
+                d={preview.pathData}
+                fill="none"
+                stroke={activeColor}
+                strokeWidth={preview.tool === "pencil" ? 2 : 12}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0.85}
               />
             </g>
           )}

@@ -13,7 +13,9 @@ export type ElementType =
   | "circle"
   | "curve"
   | "star"
-  | "shape3d";
+  | "shape3d"
+  | "brush"
+  | "pencil";
 
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
 
@@ -70,6 +72,9 @@ export interface Style {
   tiltX3d?: number; // 3D Tilt X angle (-60 to 60 deg)
   tiltY3d?: number; // 3D Tilt Y angle (-60 to 60 deg)
   color3d?: string; // Extrude face shadow color
+
+  // Freehand Brush & Pencil extensions
+  brushSize?: number; // 1-100px
 }
 
 export interface TextContent {
@@ -99,6 +104,7 @@ export interface CanvasNode {
   content?: TextContent | ImageContent;
   children?: NodeId[]; // only present if type === "group"
   breakpoints?: Partial<Record<"tablet" | "mobile", NodeOverride>>;
+  pathData?: string; // SVG path data for freehand brush and pencil strokes
 }
 
 // The canvas holds a flat map of nodes, not a nested tree:
@@ -132,7 +138,11 @@ export type ActiveTool =
   | "circle"
   | "curve"
   | "star"
-  | "shape3d";
+  | "shape3d"
+  | "brush"
+  | "pencil"
+  | "fill"
+  | "eraser";
 
 /** Which resize handle is being dragged */
 export type ResizeHandle =

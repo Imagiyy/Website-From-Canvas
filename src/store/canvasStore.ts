@@ -117,6 +117,8 @@ interface CanvasStoreActions {
   createCurve: (x: number, y: number, width?: number, height?: number) => void;
   createStar: (x: number, y: number, width?: number, height?: number, points?: number) => void;
   createShape3D: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
+  createPathNode: (type: "brush" | "pencil", pathData: string, bounds: Geometry, style?: Partial<Style>) => void;
+  fillNodeColor: (nodeId: NodeId, color: string) => void;
 }
 
 type CanvasStore = CanvasStoreState & CanvasStoreActions;
@@ -140,6 +142,8 @@ const DEFAULT_NEXT_NUMBER: Record<ElementType, number> = {
   curve: 1,
   star: 1,
   shape3d: 1,
+  brush: 1,
+  pencil: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -240,6 +244,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   editingNodeId: null,
   alignmentGuides: [],
   imageUploadHandler: null,
+  activeColor: "#3B82F6",
+
+  setActiveColor: (color: string) => set({ activeColor: color }),
   past: [],
   future: [],
 
@@ -1033,12 +1040,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         oldNode.type === "rectangle"
           ? "Rectangle"
           : oldNode.type === "text"
-          ? "Text"
-          : oldNode.type === "image"
-          ? "Image"
-          : oldNode.type === "line"
-          ? "Line"
-          : "Group";
+            ? "Text"
+            : oldNode.type === "image"
+              ? "Image"
+              : oldNode.type === "line"
+                ? "Line"
+                : "Group";
 
       const newNode: CanvasNode = {
         ...structuredClone(oldNode),
@@ -1392,6 +1399,68 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       nodes: { ...state.nodes, [id]: node },
       selectedNodeIds: new Set([id]),
       nextNumber: { ...state.nextNumber, shape3d: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createPathNode: (type, pathData, bounds, customStyle) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const isPencil = type === "pencil";
+    const num = state.nextNumber[type] ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name: `${isPencil ? "Pencil" : "Brush"} ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: bounds,
+      pathData,
+      style: {
+        fill: "transparent",
+        opacity: 1,
+        border: { color: customStyle?.border?.color ?? state.activeColor, width: isPencil ? 2 : 12, style: "solid" },
+        brushSize: isPencil ? 2 : 12,
+        ...customStyle,
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, [type]: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  fillNodeColor: (nodeId, color) => {
+    const state = get();
+    const target = state.nodes[nodeId];
+    if (!target) return;
+
+    const snap = snapshot(state);
+
+    // If node is text, fill typography color; if line/brush/pencil, fill stroke color; else fill background color!
+    let updatedStyle = { ...target.style };
+    if (target.type === "text" && target.style.typography) {
+      updatedStyle.typography = { ...target.style.typography, color };
+    } else if (target.type === "line" || target.type === "brush" || target.type === "pencil") {
+      updatedStyle.border = { ...(target.style.border ?? { width: 2, style: "solid" }), color };
+      updatedStyle.fill = color;
+    } else {
+      updatedStyle.fill = color;
+    }
+
+    set({
+      nodes: {
+        ...state.nodes,
+        [nodeId]: {
+          ...target,
+          style: updatedStyle,
+        },
+      },
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });

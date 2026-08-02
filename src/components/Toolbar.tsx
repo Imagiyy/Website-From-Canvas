@@ -14,6 +14,8 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
   const future = useCanvasStore((s) => s.future);
   const nodes = useCanvasStore((s) => s.nodes);
 
+  const activeColor = useCanvasStore((s) => s.activeColor);
+  const setActiveColor = useCanvasStore((s) => s.setActiveColor);
   const setActiveTool = useCanvasStore((s) => s.setActiveTool);
   const resetView = useCanvasStore((s) => s.resetView);
   const undo = useCanvasStore((s) => s.undo);
@@ -215,6 +217,76 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
           </svg>
           <span>3D Shape</span>
         </button>
+
+        {/* Brush */}
+        <button
+          className={`toolbar__btn ${activeTool === "brush" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("brush")}
+          title="Brush (Freehand Paint)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M14 2C14 2 12.5 5 10 5.5C7.5 6 4.5 9 4.5 9L2 14L7 11.5C7 11.5 10 8.5 10.5 6C11 3.5 14 2 14 2Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <circle cx="3" cy="13" r="1.5" fill={activeColor} />
+          </svg>
+          <span>Brush</span>
+        </button>
+
+        {/* Pencil */}
+        <button
+          className={`toolbar__btn ${activeTool === "pencil" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("pencil")}
+          title="Pencil (Write & Sketch)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Pencil</span>
+        </button>
+
+        {/* Fill Bucket */}
+        <button
+          className={`toolbar__btn ${activeTool === "fill" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("fill")}
+          title="Fill Bucket (Color Shapes)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 1.5L2 6.5L8.5 13L13.5 8L7 1.5H4Z" stroke="currentColor" strokeWidth="1.3" fill="none" />
+            <path d="M12 11C12 12.5 13.5 14.5 13.5 14.5C13.5 14.5 15 12.5 15 11C15 10.2 14.3 9.5 13.5 9.5C12.7 9.5 12 10.2 12 11Z" fill={activeColor} />
+          </svg>
+          <span>Fill</span>
+        </button>
+
+        {/* Eraser */}
+        <button
+          className={`toolbar__btn ${activeTool === "eraser" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("eraser")}
+          title="Eraser (Erase Strokes)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 14.5L1 9.5L9.5 1L14.5 6L6 14.5Z" stroke="currentColor" strokeWidth="1.3" fill="none" />
+            <path d="M4 14.5H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          <span>Eraser</span>
+        </button>
+      </div>
+
+      <div className="toolbar__separator" />
+
+      {/* Color Swatch Picker */}
+      <div className="toolbar__section">
+        <label className="toolbar__color-picker" title="Active Color Swatch">
+          <input
+            type="color"
+            value={activeColor}
+            onChange={(e) => setActiveColor(e.target.value)}
+            style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
+          />
+          <span
+            className="toolbar__color-swatch"
+            style={{ backgroundColor: activeColor }}
+          />
+          <span>Color</span>
+        </label>
       </div>
 
       <div className="toolbar__separator" />

@@ -10,6 +10,7 @@ import { CircleNode } from "./CircleNode";
 import { CurveNode } from "./CurveNode";
 import { StarNode } from "./StarNode";
 import { Shape3DNode } from "./Shape3DNode";
+import { PathNode } from "./PathNode";
 
 interface Props {
   node: CanvasNode;
@@ -39,6 +40,9 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
       return <StarNode node={node} />;
     case "shape3d":
       return <Shape3DNode node={node} />;
+    case "brush":
+    case "pencil":
+      return <PathNode node={node} />;
     default:
       return null;
   }
