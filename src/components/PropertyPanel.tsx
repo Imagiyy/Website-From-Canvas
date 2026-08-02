@@ -24,6 +24,7 @@ export const PropertyPanel: React.FC = () => {
   const updateNodeName = useCanvasStore((s) => s.updateNodeName);
   const updateNodeGeometry = useCanvasStore((s) => s.updateNodeGeometry);
   const updateNodeStyle = useCanvasStore((s) => s.updateNodeStyle);
+  const updateNodeContent = useCanvasStore((s) => s.updateNodeContent);
   const updateSelectedNodesStyle = useCanvasStore((s) => s.updateSelectedNodesStyle);
   const updateImageFit = useCanvasStore((s) => s.updateImageFit);
   const alignSelected = useCanvasStore((s) => s.alignSelected);
@@ -512,6 +513,20 @@ export const PropertyPanel: React.FC = () => {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Text Content (Text Node Only) */}
+        {node.type === "text" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Text Content</span>
+            <textarea
+              className="property-panel__textarea"
+              rows={3}
+              value={node.content?.kind === "text" ? node.content.text : "Text"}
+              onChange={(e) => updateNodeContent(node.id, { kind: "text", text: e.target.value }, true)}
+              placeholder="Enter text..."
+            />
           </div>
         )}
 

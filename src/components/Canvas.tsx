@@ -22,14 +22,61 @@ export const Canvas: React.FC = () => {
   const alignmentGuides = useCanvasStore((s) => s.alignmentGuides);
   const zoomAtPoint = useCanvasStore((s) => s.zoomAtPoint);
   const createImage = useCanvasStore((s) => s.createImage);
+  const setImageUploadHandler = useCanvasStore((s) => s.setImageUploadHandler);
+  const updateNodeContent = useCanvasStore((s) => s.updateNodeContent);
+  const setEditingNode = useCanvasStore((s) => s.setEditingNode);
+
+  // Resolve effective nodes for active breakpoint
+  const effectiveNodes = getEffectiveNodesMap(nodes, activeBreakpoint);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const editingTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const editingNode = editingNodeId ? effectiveNodes[editingNodeId] : null;
+  const isEditingText = editingNode?.type === "text";
+  const storeEditingText = isEditingText && editingNode.content?.kind === "text" ? editingNode.content.text : "Text";
+
+  const [overlayText, setOverlayText] = useState(storeEditingText);
+
+  React.useEffect(() => {
+    if (isEditingText) {
+      setOverlayText(storeEditingText);
+      const timer = setTimeout(() => {
+        if (editingTextareaRef.current) {
+          editingTextareaRef.current.focus();
+          editingTextareaRef.current.select();
+        }
+      }, 20);
+      return () => clearTimeout(timer);
+    }
+  }, [editingNodeId, isEditingText]);
+
+  React.useEffect(() => {
+    setImageUploadHandler(() => {
+      if (!fileInputRef.current) return;
+      const { panX, panY, zoom } = useCanvasStore.getState().viewport;
+      let centerX = 150;
+      let centerY = 150;
+      if (svgRef.current) {
+        const rect = svgRef.current.getBoundingClientRect();
+        centerX = Math.round((rect.width / 2 - panX) / zoom);
+        centerY = Math.round((rect.height / 2 - panY) / zoom);
+      }
+      fileInputRef.current.dataset.clickX = String(centerX);
+      fileInputRef.current.dataset.clickY = String(centerY);
+      fileInputRef.current.click();
+    });
+
+    return () => {
+      setImageUploadHandler(null);
+    };
+  }, [setImageUploadHandler]);
 
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick((t) => t + 1), []);
 
   const { handlers, drawPreviewRef } = useCanvasPointer(forceUpdate, fileInputRef);
-  const svgRef = useRef<SVGSVGElement>(null);
 
   useKeyboard(fileInputRef);
 
@@ -91,9 +138,6 @@ export const Canvas: React.FC = () => {
 
     e.target.value = "";
   };
-
-  // Resolve effective nodes for active breakpoint
-  const effectiveNodes = getEffectiveNodesMap(nodes, activeBreakpoint);
 
   // Filter top-level nodes for root SVG rendering
   const topLevelNodes = Object.values(effectiveNodes)
@@ -207,6 +251,60 @@ export const Canvas: React.FC = () => {
           />
         </g>
       </svg>
+
+      {isEditingText && editingNode && (
+        <textarea
+          ref={editingTextareaRef}
+          value={overlayText}
+          onChange={(e) => {
+            setOverlayText(e.target.value);
+            updateNodeContent(editingNode.id, { kind: "text", text: e.target.value }, true);
+          }}
+          onBlur={() => {
+            const finalVal = overlayText.trim() === "" ? "Text" : overlayText;
+            updateNodeContent(editingNode.id, { kind: "text", text: finalVal });
+            setEditingNode(null);
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              const finalVal = overlayText.trim() === "" ? "Text" : overlayText;
+              updateNodeContent(editingNode.id, { kind: "text", text: finalVal });
+              setEditingNode(null);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditingNode(null);
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            left: `${editingNode.geometry.x * viewport.zoom + viewport.panX}px`,
+            top: `${editingNode.geometry.y * viewport.zoom + viewport.panY}px`,
+            width: `${editingNode.geometry.width * viewport.zoom}px`,
+            height: `${editingNode.geometry.height * viewport.zoom}px`,
+            transform: editingNode.geometry.rotation ? `rotate(${editingNode.geometry.rotation}deg)` : undefined,
+            fontFamily: editingNode.style.typography?.fontFamily ?? "Inter, sans-serif",
+            fontSize: `${(editingNode.style.typography?.fontSize ?? 18) * viewport.zoom}px`,
+            fontWeight: editingNode.style.typography?.fontWeight ?? 400,
+            color: editingNode.style.typography?.color ?? "#E4E4F0",
+            textAlign: editingNode.style.typography?.align ?? "left",
+            lineHeight: editingNode.style.typography?.lineHeight ?? 1.4,
+            background: "rgba(15, 15, 26, 0.96)",
+            outline: "2px solid #2563EB",
+            outlineOffset: "2px",
+            borderRadius: "3px",
+            border: "none",
+            resize: "none",
+            padding: `${2 * viewport.zoom}px ${4 * viewport.zoom}px`,
+            boxSizing: "border-box",
+            zIndex: 1000,
+          }}
+        />
+      )}
     </>
   );
 };

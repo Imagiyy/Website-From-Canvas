@@ -340,3 +340,21 @@
   background: var(--accent) !important;
   color: white !important;
 }
+
+.property-panel__textarea {
+  width: 100%;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 8px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.4;
+
+  &:focus {
+    border-color: var(--accent);
+  }
+}

@@ -38,6 +38,7 @@ interface CanvasStoreState {
   clipboard: CanvasNode[] | null; // Array of nodes (to support copying groups or multi-selections)
   editingNodeId: NodeId | null; // Text node currently being edited inline
   alignmentGuides: AlignmentGuide[];
+  imageUploadHandler: (() => void) | null;
 
   // ---- History ----
   past: Snapshot[];
@@ -47,6 +48,10 @@ interface CanvasStoreState {
 interface CanvasStoreActions {
   // Breakpoint Switcher
   setActiveBreakpoint: (bp: import("../types/canvas").BreakpointKey) => void;
+
+  // Image Upload Trigger
+  setImageUploadHandler: (fn: (() => void) | null) => void;
+  triggerImageUpload: () => void;
 
   // Alignment Guides
   setAlignmentGuides: (guides: AlignmentGuide[]) => void;
@@ -60,7 +65,7 @@ interface CanvasStoreActions {
   updateNodeName: (id: NodeId, name: string) => void;
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
   updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
-  updateNodeContent: (id: NodeId, content: TextContent | ImageContent) => void;
+  updateNodeContent: (id: NodeId, content: TextContent | ImageContent, skipUndo?: boolean) => void;
   updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   deleteSelected: () => void;
 
@@ -224,14 +229,26 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   clipboard: null,
   editingNodeId: null,
   alignmentGuides: [],
+  imageUploadHandler: null,
   past: [],
   future: [],
 
   // -----------------------------------------------------------------------
-  // Breakpoints
+  // Breakpoints & Image Upload
   // -----------------------------------------------------------------------
   setActiveBreakpoint: (bp) => {
     set({ activeBreakpoint: bp, editingNodeId: null });
+  },
+
+  setImageUploadHandler: (fn) => {
+    set({ imageUploadHandler: fn });
+  },
+
+  triggerImageUpload: () => {
+    const handler = get().imageUploadHandler;
+    if (handler) {
+      handler();
+    }
   },
 
   // -----------------------------------------------------------------------
@@ -645,10 +662,24 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     });
   },
 
-  updateNodeContent: (id, content) => {
+  updateNodeContent: (id, content, skipUndo = false) => {
     const state = get();
     const node = state.nodes[id];
     if (!node) return;
+
+    if (skipUndo) {
+      set({
+        nodes: {
+          ...state.nodes,
+          [id]: {
+            ...node,
+            content,
+          },
+        },
+      });
+      return;
+    }
+
     const snap = snapshot(state);
     set({
       nodes: {
@@ -1144,6 +1175,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set({
       nodes: { ...state.nodes, [id]: node },
       selectedNodeIds: new Set([id]),
+      editingNodeId: id,
       nextNumber: { ...state.nextNumber, text: num + 1 },
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],

@@ -19,9 +19,10 @@ export function useKeyboard(fileInputRef?: React.RefObject<HTMLInputElement | nu
         return;
       }
 
-      // Ignore if user is typing in an input/textarea element
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // Ignore if user is typing in an input/textarea element or contenteditable
+      const targetEl = e.target as HTMLElement;
+      const tag = targetEl?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || targetEl?.isContentEditable) return;
 
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;

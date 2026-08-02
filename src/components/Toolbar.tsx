@@ -33,11 +33,14 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
     (id) => nodes[id]?.type === "group"
   );
 
+  const triggerImageUpload = useCanvasStore((s) => s.triggerImageUpload);
+
   const handleImageToolClick = () => {
     setActiveTool("image");
     if (onImageUploadClick) {
       onImageUploadClick();
     }
+    triggerImageUpload();
   };
 
   const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);

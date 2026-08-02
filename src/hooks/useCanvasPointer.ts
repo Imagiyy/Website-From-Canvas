@@ -1,7 +1,7 @@
 import { useRef, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
-import type { ResizeHandle, LineEndpointHandle } from "../types/canvas";
 import { computeSnapping } from "../utils/snapping";
+import { getEffectiveNode, getEffectiveNodesMap } from "../utils/breakpoint";
 
 // ---------------------------------------------------------------------------
 // Interaction Modes
@@ -69,6 +69,8 @@ export function useCanvasPointer(
 } {
   const modeRef = useRef<InteractionMode>({ type: "idle" });
   const drawPreviewRef = useRef<DrawPreview | null>(null);
+  const lastClickTimeRef = useRef<number>(0);
+  const lastClickNodeIdRef = useRef<string | null>(null);
 
   const screenToCanvas = useCallback(
     (screenX: number, screenY: number): [number, number] => {
@@ -104,20 +106,46 @@ export function useCanvasPointer(
       if (e.button !== 0) return;
 
       const svg = e.currentTarget;
-      svg.setPointerCapture(e.pointerId);
-
       const target = e.target as SVGElement;
       const store = useCanvasStore.getState();
+
+      const rect = svg.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
+
+      // 0. Check Text Node Double Click (timestamp-based) BEFORE setting pointer capture
+      const targetEl = target as HTMLElement;
+      const closestNodeEl = targetEl.closest?.("[data-node-id]");
+      const hitNodeId = closestNodeEl?.getAttribute("data-node-id") ?? target.getAttribute("data-node-id");
+      const now = Date.now();
+
+      if (hitNodeId && store.nodes[hitNodeId]) {
+        const hitNode = getEffectiveNode(store.nodes[hitNodeId], store.activeBreakpoint);
+        const isAlreadySelected = store.selectedNodeIds.has(hitNode.id) && store.selectedNodeIds.size === 1;
+        const isDoubleClick =
+          lastClickNodeIdRef.current === hitNode.id && now - lastClickTimeRef.current < 450;
+
+        lastClickTimeRef.current = now;
+        lastClickNodeIdRef.current = hitNode.id;
+
+        if (hitNode.type === "text" && (isDoubleClick || isAlreadySelected)) {
+          store.selectNode(hitNode.id);
+          store.setEditingNode(hitNode.id);
+          return; // DO NOT setPointerCapture on SVG!
+        }
+      } else {
+        lastClickTimeRef.current = 0;
+        lastClickNodeIdRef.current = null;
+      }
 
       // If user is currently editing a text node and clicks outside, exit edit mode
       if (store.editingNodeId) {
         store.setEditingNode(null);
       }
 
-      const rect = svg.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
-      const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
+      // Set pointer capture for standard canvas drag operations
+      svg.setPointerCapture(e.pointerId);
 
       // 1. Check Line endpoint handles
       const handleAttr = target.getAttribute("data-handle");
@@ -137,7 +165,8 @@ export function useCanvasPointer(
       // 2. Check Selection Overlay Handles (Rotate / Resize)
       if (handleAttr && store.selectedNodeIds.size > 0) {
         const selectedId = Array.from(store.selectedNodeIds)[0];
-        const node = store.nodes[selectedId];
+        const rawNode = store.nodes[selectedId];
+        const node = rawNode ? getEffectiveNode(rawNode, store.activeBreakpoint) : null;
 
         if (handleAttr === "rotate" && node) {
           const cx = node.geometry.x + node.geometry.width / 2;
@@ -156,7 +185,7 @@ export function useCanvasPointer(
         }
 
         if (node && handleAttr !== "rotate") {
-          const handle = handleAttr as ResizeHandle;
+          const handle = handleAttr as import("../types/canvas").ResizeHandle;
           const { x, y, width, height, rotation } = node.geometry;
           const cx = x + width / 2;
           const cy = y + height / 2;
@@ -186,9 +215,9 @@ export function useCanvasPointer(
       }
 
       // 3. Check Node Hit
-      const nodeId = target.getAttribute("data-node-id");
+      const nodeId = hitNodeId;
       if (nodeId && store.nodes[nodeId]) {
-        let targetNode = store.nodes[nodeId];
+        let targetNode = getEffectiveNode(store.nodes[nodeId], store.activeBreakpoint);
 
         // Double-click interaction logic:
         if (e.detail === 2) {
@@ -206,7 +235,7 @@ export function useCanvasPointer(
         // If node is inside a group and the group is not yet selected, select top parent group
         let parentToSelect = targetNode;
         while (parentToSelect.parentId && store.nodes[parentToSelect.parentId]) {
-          const parentGroup = store.nodes[parentToSelect.parentId];
+          const parentGroup = getEffectiveNode(store.nodes[parentToSelect.parentId], store.activeBreakpoint);
           // If the group is already selected, allow selecting the child directly
           if (store.selectedNodeIds.has(parentGroup.id)) {
             break;
@@ -216,14 +245,16 @@ export function useCanvasPointer(
 
         store.selectNode(parentToSelect.id, e.shiftKey);
 
+        const effectiveParent = getEffectiveNode(parentToSelect, store.activeBreakpoint);
+
         store.pushUndo();
         modeRef.current = {
           type: "move",
-          nodeId: parentToSelect.id,
+          nodeId: effectiveParent.id,
           startCanvasX: canvasX,
           startCanvasY: canvasY,
-          startNodeX: parentToSelect.geometry.x,
-          startNodeY: parentToSelect.geometry.y,
+          startNodeX: effectiveParent.geometry.x,
+          startNodeY: effectiveParent.geometry.y,
         };
         return;
       }
@@ -369,11 +400,14 @@ export function useCanvasPointer(
         case "move": {
           const dx = canvasX - mode.startCanvasX;
           const dy = canvasY - mode.startCanvasY;
-          const targetNode = store.nodes[mode.nodeId];
-          if (!targetNode) break;
+          const rawTarget = store.nodes[mode.nodeId];
+          if (!rawTarget) break;
+          const targetNode = getEffectiveNode(rawTarget, store.activeBreakpoint);
 
           const rawX = mode.startNodeX + dx;
           const rawY = mode.startNodeY + dy;
+
+          const effectiveNodesMap = getEffectiveNodesMap(store.nodes, store.activeBreakpoint);
 
           const snapRes = computeSnapping(
             {
@@ -384,7 +418,7 @@ export function useCanvasPointer(
               rotation: targetNode.geometry.rotation,
             },
             store.selectedNodeIds,
-            store.nodes,
+            effectiveNodesMap,
             store.viewport.zoom,
             e.altKey
           );
