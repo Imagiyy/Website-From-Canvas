@@ -87,8 +87,6 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
     }
 
     case "line": {
-      const w = Math.abs(node.geometry.width);
-      const h = Math.abs(node.geometry.height);
       const strokeColor = node.style.border?.color ?? "#2563EB";
       const strokeWidth = node.style.border?.width ?? 2;
       return `${indent}<div id="node-${nid}" class="canvas-element line-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <line x1="0" y1="0" x2="${node.geometry.width}" y2="${node.geometry.height}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
@@ -102,6 +100,56 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
         .map((c) => renderNodeHTML(c, nodes, indent + "  "))
         .join("\n");
       return `${indent}<div id="node-${nid}" class="canvas-element group-node">\n${childrenHTML}\n${indent}</div>`;
+    }
+
+    case "polygon": {
+      const sides = node.style.sides ?? 5;
+      const pts: string[] = [];
+      const n = Math.max(3, Math.min(30, sides));
+      for (let i = 0; i < n; i++) {
+        const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+        const px = (50 + 50 * Math.cos(angle)).toFixed(1);
+        const py = (50 + 50 * Math.sin(angle)).toFixed(1);
+        pts.push(`${px}% ${py}%`);
+      }
+      return `${indent}<div id="node-${nid}" class="canvas-element polygon-node" style="clip-path: polygon(${pts.join(", ")});"></div>`;
+    }
+
+    case "circle":
+      return `${indent}<div id="node-${nid}" class="canvas-element circle-node" style="border-radius: 50%;"></div>`;
+
+    case "curve": {
+      const curvature = node.style.curvature ?? 50;
+      const strokeColor = node.style.border?.color ?? node.style.fill ?? "#EC4899";
+      const strokeWidth = Math.max(2, node.style.border?.width ?? 4);
+      const w = Math.abs(node.geometry.width);
+      const h = Math.abs(node.geometry.height);
+      const curveDepth = (curvature / 100) * (h / 2);
+      const pathD = `M 0,${h / 2} C ${w * 0.25},${h / 2 - curveDepth} ${w * 0.75},${h / 2 + curveDepth} ${w},${h / 2}`;
+      return `${indent}<div id="node-${nid}" class="canvas-element curve-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
+    }
+
+    case "star": {
+      const pointsCount = node.style.starPoints ?? 5;
+      const innerRatio = node.style.innerRadius ?? 0.5;
+      const pts: string[] = [];
+      const total = pointsCount * 2;
+      for (let i = 0; i < total; i++) {
+        const angle = (i * Math.PI) / pointsCount - Math.PI / 2;
+        const isOuter = i % 2 === 0;
+        const r = isOuter ? 50 : 50 * innerRatio;
+        const px = (50 + r * Math.cos(angle)).toFixed(1);
+        const py = (50 + r * Math.sin(angle)).toFixed(1);
+        pts.push(`${px}% ${py}%`);
+      }
+      return `${indent}<div id="node-${nid}" class="canvas-element star-node" style="clip-path: polygon(${pts.join(", ")});"></div>`;
+    }
+
+    case "shape3d": {
+      const depth = node.style.depth3d ?? 30;
+      const mainColor = node.style.fill ?? "#8B5CF6";
+      const sideColor = node.style.color3d ?? "#6D28D9";
+      return `${indent}<div id="node-${nid}" class="canvas-element shape3d-node" style="box-shadow: ${depth * 0.4}px ${depth * 0.4}px 0px ${sideColor}; background: ${mainColor};"></div>`;
     }
   }
 }

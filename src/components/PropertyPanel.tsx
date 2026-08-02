@@ -618,18 +618,173 @@ export const PropertyPanel: React.FC = () => {
             <span className="property-panel__section-title">Image Fit</span>
             <div className="property-panel__row">
               <label>Object Fit</label>
-              <select
-                className="property-panel__select"
-                value={imageContent.fit}
-                onChange={(e) => updateImageFit(node.id, e.target.value as "cover" | "contain" | "fill")}
-              >
-                <option value="cover">Cover</option>
-                <option value="contain">Contain</option>
-                <option value="fill">Fill</option>
-              </select>
+              <div className="property-panel__btn-group">
+                {(["cover", "contain", "fill"] as const).map((fit) => (
+                  <button
+                    key={fit}
+                    className={`property-panel__btn ${
+                      imageContent.fit === fit ? "property-panel__btn--active" : ""
+                    }`}
+                    onClick={() => updateImageFit(node.id, fit)}
+                  >
+                    {fit}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
+
+        {/* Polygon Settings (Polygon Node Only) */}
+        {node.type === "polygon" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Polygon Geometry</span>
+            <div className="property-panel__row">
+              <label>Sides ({style.sides ?? 5})</label>
+              <input
+                type="range"
+                min="3"
+                max="30"
+                value={style.sides ?? 5}
+                onChange={(e) => updateNodeStyle(node.id, { sides: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+              <input
+                type="number"
+                min="3"
+                max="30"
+                value={style.sides ?? 5}
+                onChange={(e) => updateNodeStyle(node.id, { sides: Number(e.target.value) })}
+                className="property-panel__num-input"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Star Settings (Star Node Only) */}
+        {node.type === "star" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Star Geometry</span>
+            <div className="property-panel__row">
+              <label>Points ({style.starPoints ?? 5})</label>
+              <input
+                type="range"
+                min="3"
+                max="20"
+                value={style.starPoints ?? 5}
+                onChange={(e) => updateNodeStyle(node.id, { starPoints: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+              <input
+                type="number"
+                min="3"
+                max="20"
+                value={style.starPoints ?? 5}
+                onChange={(e) => updateNodeStyle(node.id, { starPoints: Number(e.target.value) })}
+                className="property-panel__num-input"
+              />
+            </div>
+            <div className="property-panel__row">
+              <label>Inner Ratio</label>
+              <input
+                type="range"
+                min="0.1"
+                max="0.9"
+                step="0.05"
+                value={style.innerRadius ?? 0.5}
+                onChange={(e) => updateNodeStyle(node.id, { innerRadius: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Curve Settings (Curve Node Only) */}
+        {node.type === "curve" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Curve Settings</span>
+            <div className="property-panel__row">
+              <label>Curvature</label>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={style.curvature ?? 50}
+                onChange={(e) => updateNodeStyle(node.id, { curvature: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 3D Shape Settings (Shape3D Node Only) */}
+        {node.type === "shape3d" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">3D Mesh Geometry</span>
+            <div className="property-panel__row">
+              <label>3D Sides ({style.sides ?? 4})</label>
+              <input
+                type="range"
+                min="3"
+                max="30"
+                value={style.sides ?? 4}
+                onChange={(e) => updateNodeStyle(node.id, { sides: Number(e.target.value) })}
+                className="property-panel__slider"
+              />
+              <input
+                type="number"
+                min="3"
+                max="30"
+                value={style.sides ?? 4}
+                onChange={(e) => updateNodeStyle(node.id, { sides: Number(e.target.value) })}
+                className="property-panel__num-input"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 3D Visual Design Settings (All Shapes) */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">3D Extrude & Depth</span>
+          <div className="property-panel__row">
+            <label>Extrude Depth</label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={style.depth3d ?? 0}
+              onChange={(e) => updateNodeStyle(node.id, { depth3d: Number(e.target.value) })}
+              className="property-panel__slider"
+            />
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={style.depth3d ?? 0}
+              onChange={(e) => updateNodeStyle(node.id, { depth3d: Number(e.target.value) })}
+              className="property-panel__num-input"
+            />
+          </div>
+          {(style.depth3d ?? 0) > 0 && (
+            <div className="property-panel__row">
+              <label>3D Color</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value={style.color3d ?? "#1E40AF"}
+                  onChange={(e) => updateNodeStyle(node.id, { color3d: e.target.value })}
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  value={style.color3d ?? "#1E40AF"}
+                  onChange={(e) => updateNodeStyle(node.id, { color3d: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

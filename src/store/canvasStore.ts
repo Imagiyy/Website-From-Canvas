@@ -112,6 +112,11 @@ interface CanvasStoreActions {
   createText: (x: number, y: number) => void;
   createImage: (x: number, y: number, width: number, height: number, assetUrl: string) => void;
   createLine: (x1: number, y1: number, x2: number, y2: number) => void;
+  createPolygon: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
+  createCircle: (x: number, y: number, width?: number, height?: number) => void;
+  createCurve: (x: number, y: number, width?: number, height?: number) => void;
+  createStar: (x: number, y: number, width?: number, height?: number, points?: number) => void;
+  createShape3D: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
 }
 
 type CanvasStore = CanvasStoreState & CanvasStoreActions;
@@ -130,6 +135,11 @@ const DEFAULT_NEXT_NUMBER: Record<ElementType, number> = {
   image: 1,
   line: 1,
   group: 1,
+  polygon: 1,
+  circle: 1,
+  curve: 1,
+  star: 1,
+  shape3d: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -1241,6 +1251,147 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       nodes: { ...state.nodes, [id]: node },
       selectedNodeIds: new Set([id]),
       nextNumber: { ...state.nextNumber, line: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createPolygon: (x, y, width = 120, height = 120, sides = 5) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const num = state.nextNumber.polygon ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type: "polygon",
+      name: `Polygon ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: { x, y, width: width > 0 ? width : 120, height: height > 0 ? height : 120, rotation: 0 },
+      style: {
+        fill: "#3B82F6",
+        opacity: 1,
+        sides,
+        border: { color: "#1D4ED8", width: 1, style: "solid" },
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, polygon: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createCircle: (x, y, width = 120, height = 120) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const num = state.nextNumber.circle ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type: "circle",
+      name: `Circle ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: { x, y, width: width > 0 ? width : 120, height: height > 0 ? height : 120, rotation: 0 },
+      style: {
+        fill: "#10B981",
+        opacity: 1,
+        border: { color: "#047857", width: 1, style: "solid" },
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, circle: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createCurve: (x, y, width = 160, height = 80) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const num = state.nextNumber.curve ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type: "curve",
+      name: `Curve ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: { x, y, width: width > 0 ? width : 160, height: height > 0 ? height : 80, rotation: 0 },
+      style: {
+        opacity: 1,
+        curvature: 50,
+        border: { color: "#EC4899", width: 4, style: "solid" },
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, curve: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createStar: (x, y, width = 120, height = 120, starPoints = 5) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const num = state.nextNumber.star ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type: "star",
+      name: `Star ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: { x, y, width: width > 0 ? width : 120, height: height > 0 ? height : 120, rotation: 0 },
+      style: {
+        fill: "#F59E0B",
+        opacity: 1,
+        starPoints,
+        innerRadius: 0.5,
+        border: { color: "#B45309", width: 1, style: "solid" },
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, star: num + 1 },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createShape3D: (x, y, width = 140, height = 140, sides = 4) => {
+    const state = get();
+    const id = crypto.randomUUID();
+    const num = state.nextNumber.shape3d ?? 1;
+    const node: CanvasNode = {
+      id,
+      parentId: null,
+      type: "shape3d",
+      name: `3D Shape ${num}`,
+      order: maxOrder(state.nodes) + 1,
+      geometry: { x, y, width: width > 0 ? width : 140, height: height > 0 ? height : 140, rotation: 0 },
+      style: {
+        fill: "#8B5CF6",
+        opacity: 1,
+        sides,
+        depth3d: 30,
+        color3d: "#6D28D9",
+        border: { color: "#5B21B6", width: 1, style: "solid" },
+      },
+    };
+    const snap = snapshot(state);
+    set({
+      nodes: { ...state.nodes, [id]: node },
+      selectedNodeIds: new Set([id]),
+      nextNumber: { ...state.nextNumber, shape3d: num + 1 },
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });

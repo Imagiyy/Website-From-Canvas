@@ -3,7 +3,17 @@
 
 export type NodeId = string;
 
-export type ElementType = "rectangle" | "text" | "image" | "line" | "group";
+export type ElementType =
+  | "rectangle"
+  | "text"
+  | "image"
+  | "line"
+  | "group"
+  | "polygon"
+  | "circle"
+  | "curve"
+  | "star"
+  | "shape3d";
 
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
 
@@ -48,6 +58,18 @@ export interface Style {
   cornerRadius?: number;
   typography?: TypographyStyle;
   shadow?: ShadowStyle;
+
+  // Polygon, Star & Curve shape extensions
+  sides?: number; // Number of sides for regular polygon (3-30)
+  starPoints?: number; // Number of points for star (3-20)
+  innerRadius?: number; // Ratio 0.1-0.9 for star inner radius
+  curvature?: number; // Curvature intensity for curve shapes (-100 to 100)
+
+  // 3D Visual Design extensions
+  depth3d?: number; // Extrude depth in px (0-100)
+  tiltX3d?: number; // 3D Tilt X angle (-60 to 60 deg)
+  tiltY3d?: number; // 3D Tilt Y angle (-60 to 60 deg)
+  color3d?: string; // Extrude face shadow color
 }
 
 export interface TextContent {
@@ -100,7 +122,17 @@ export interface Viewport {
   zoom: number; // 1.0 = 100%
 }
 
-export type ActiveTool = "select" | "rectangle" | "text" | "image" | "line";
+export type ActiveTool =
+  | "select"
+  | "rectangle"
+  | "text"
+  | "image"
+  | "line"
+  | "polygon"
+  | "circle"
+  | "curve"
+  | "star"
+  | "shape3d";
 
 /** Which resize handle is being dragged */
 export type ResizeHandle =

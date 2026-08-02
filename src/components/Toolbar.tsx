@@ -154,6 +154,67 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
           </svg>
           <span>Line</span>
         </button>
+
+        {/* Polygon */}
+        <button
+          className={`toolbar__btn ${activeTool === "polygon" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("polygon")}
+          title="Polygon (Multi-side)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <polygon points="8,1 15,6 12,14 4,14 1,6" stroke="currentColor" strokeWidth="1.4" fill="none" />
+          </svg>
+          <span>Polygon</span>
+        </button>
+
+        {/* Circle */}
+        <button
+          className={`toolbar__btn ${activeTool === "circle" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("circle")}
+          title="Circle / Ellipse"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" fill="none" />
+          </svg>
+          <span>Circle</span>
+        </button>
+
+        {/* Curve */}
+        <button
+          className={`toolbar__btn ${activeTool === "curve" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("curve")}
+          title="Curve / Wave"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 12C5 4 11 12 14 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+          </svg>
+          <span>Curve</span>
+        </button>
+
+        {/* Star */}
+        <button
+          className={`toolbar__btn ${activeTool === "star" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("star")}
+          title="Star"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <polygon points="8,1 10.3,5.7 15.5,6.5 11.8,10.1 12.6,15.3 8,12.8 3.4,15.3 4.2,10.1 0.5,6.5 5.7,5.7" stroke="currentColor" strokeWidth="1.2" fill="none" />
+          </svg>
+          <span>Star</span>
+        </button>
+
+        {/* 3D Shape */}
+        <button
+          className={`toolbar__btn ${activeTool === "shape3d" ? "toolbar__btn--active" : ""}`}
+          onClick={() => setActiveTool("shape3d")}
+          title="3D Cube / Prism"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="currentColor" strokeWidth="1.3" fill="none" />
+            <path d="M8 1V15M2 4.5L8 8L14 4.5" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+          <span>3D Shape</span>
+        </button>
       </div>
 
       <div className="toolbar__separator" />

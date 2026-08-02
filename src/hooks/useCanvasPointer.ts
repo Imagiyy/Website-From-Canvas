@@ -261,6 +261,11 @@ export function useCanvasPointer(
 
       // 4. Hit Empty Canvas Space — Branch on Active Tool
       switch (store.activeTool) {
+        case "polygon":
+        case "circle":
+        case "curve":
+        case "star":
+        case "shape3d":
         case "rectangle": {
           modeRef.current = {
             type: "draw-rect",
@@ -552,8 +557,34 @@ export function useCanvasPointer(
 
       if (mode.type === "draw-rect") {
         const preview = drawPreviewRef.current;
-        if (preview && preview.width >= MIN_SIZE && preview.height >= MIN_SIZE) {
-          store.createRectangle(preview.x, preview.y, preview.width, preview.height);
+        if (preview && preview.kind === "rect") {
+          const MIN = 10;
+          const w = preview.width < MIN ? 120 : preview.width;
+          const h = preview.height < MIN ? 120 : preview.height;
+          const px = preview.width < MIN ? mode.startCanvasX - 60 : preview.x;
+          const py = preview.height < MIN ? mode.startCanvasY - 60 : preview.y;
+
+          switch (store.activeTool) {
+            case "polygon":
+              store.createPolygon(px, py, w, h);
+              break;
+            case "circle":
+              store.createCircle(px, py, w, h);
+              break;
+            case "curve":
+              store.createCurve(px, py, w, h);
+              break;
+            case "star":
+              store.createStar(px, py, w, h);
+              break;
+            case "shape3d":
+              store.createShape3D(px, py, w, h);
+              break;
+            case "rectangle":
+            default:
+              store.createRectangle(px, py, w, h);
+              break;
+          }
           store.setActiveTool("select");
         }
         drawPreviewRef.current = null;

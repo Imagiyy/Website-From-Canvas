@@ -5,6 +5,11 @@ import { TextNode } from "./TextNode";
 import { ImageNode } from "./ImageNode";
 import { LineNode } from "./LineNode";
 import { GroupNode } from "./GroupNode";
+import { PolygonNode } from "./PolygonNode";
+import { CircleNode } from "./CircleNode";
+import { CurveNode } from "./CurveNode";
+import { StarNode } from "./StarNode";
+import { Shape3DNode } from "./Shape3DNode";
 
 interface Props {
   node: CanvasNode;
@@ -24,6 +29,16 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
       return <LineNode node={node} />;
     case "group":
       return <GroupNode node={node} nodes={nodes} editingNodeId={editingNodeId} />;
+    case "polygon":
+      return <PolygonNode node={node} />;
+    case "circle":
+      return <CircleNode node={node} />;
+    case "curve":
+      return <CurveNode node={node} />;
+    case "star":
+      return <StarNode node={node} />;
+    case "shape3d":
+      return <Shape3DNode node={node} />;
     default:
       return null;
   }

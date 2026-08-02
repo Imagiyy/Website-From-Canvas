@@ -208,19 +208,60 @@ export const Canvas: React.FC = () => {
             />
           ))}
 
-          {/* Draw preview for rectangle */}
+          {/* Live Drag-and-Draw Shape & Outer Box Preview */}
           {preview && preview.kind === "rect" && preview.width > 0 && preview.height > 0 && (
-            <rect
-              x={preview.x}
-              y={preview.y}
-              width={preview.width}
-              height={preview.height}
-              fill="rgba(229, 231, 235, 0.3)"
-              stroke="#2563EB"
-              strokeWidth={1 / viewport.zoom}
-              strokeDasharray={`${4 / viewport.zoom} ${3 / viewport.zoom}`}
-              pointerEvents="none"
-            />
+            <g pointerEvents="none" opacity={0.85}>
+              <NodeRenderer
+                node={{
+                  id: "draw-preview-shape",
+                  parentId: null,
+                  type: activeTool === "select" ? "rectangle" : (activeTool as any),
+                  name: "Preview",
+                  order: 999999,
+                  geometry: {
+                    x: preview.x,
+                    y: preview.y,
+                    width: preview.width,
+                    height: preview.height,
+                    rotation: 0,
+                  },
+                  style: {
+                    fill:
+                      activeTool === "circle"
+                        ? "#10B981"
+                        : activeTool === "polygon"
+                        ? "#3B82F6"
+                        : activeTool === "star"
+                        ? "#F59E0B"
+                        : activeTool === "shape3d"
+                        ? "#8B5CF6"
+                        : activeTool === "curve"
+                        ? "#EC4899"
+                        : "#E5E7EB",
+                    opacity: 0.8,
+                    sides: 5,
+                    starPoints: 5,
+                    innerRadius: 0.5,
+                    curvature: 50,
+                    depth3d: 30,
+                    color3d: "#6D28D9",
+                    border: { color: "#2563EB", width: 1.5, style: "solid" },
+                  },
+                }}
+                nodes={{}}
+              />
+              {/* Outer Drag Bounding Box Outline */}
+              <rect
+                x={preview.x}
+                y={preview.y}
+                width={preview.width}
+                height={preview.height}
+                fill="none"
+                stroke="#2563EB"
+                strokeWidth={1.5 / viewport.zoom}
+                strokeDasharray={`${4 / viewport.zoom} ${3 / viewport.zoom}`}
+              />
+            </g>
           )}
 
           {/* Draw preview for line */}
