@@ -1,0 +1,443 @@
+import React from "react";
+import type { CanvasNode, TypographyStyle, Style } from "../types/canvas";
+import { useCanvasStore } from "../store/canvasStore";
+import "./PropertyPanel.css";
+
+export const PropertyPanel: React.FC = () => {
+  const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
+  const nodes = useCanvasStore((s) => s.nodes);
+  const updateNodeName = useCanvasStore((s) => s.updateNodeName);
+  const updateNodeGeometry = useCanvasStore((s) => s.updateNodeGeometry);
+  const updateNodeStyle = useCanvasStore((s) => s.updateNodeStyle);
+  const updateImageFit = useCanvasStore((s) => s.updateImageFit);
+  const alignSelected = useCanvasStore((s) => s.alignSelected);
+
+  const selectedList = Array.from(selectedNodeIds)
+    .map((id) => nodes[id])
+    .filter((n): n is CanvasNode => n !== undefined);
+
+  // Case 1: Empty selection
+  if (selectedList.length === 0) {
+    return (
+      <div className="property-panel">
+        <div className="property-panel__header">
+          <span>Inspector</span>
+        </div>
+        <div className="property-panel__empty">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.4">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+          <p>No element selected</p>
+          <span>Select an item on the canvas to configure its properties.</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 2: Multi-selection (2+ elements)
+  if (selectedList.length > 1) {
+    return (
+      <div className="property-panel">
+        <div className="property-panel__header">
+          <span>Inspector</span>
+          <span className="property-panel__badge">{selectedList.length} Selected</span>
+        </div>
+
+        {/* Alignment Actions */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Align Selection</span>
+          <div className="property-panel__btn-group">
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("left")}
+              title="Align Left"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="2" y1="2" x2="2" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="4" y="4" width="8" height="3" fill="currentColor" />
+                <rect x="4" y="9" width="5" height="3" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("centerX")}
+              title="Align Center X"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="3" y="4" width="10" height="3" fill="currentColor" />
+                <rect x="5.5" y="9" width="5" height="3" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("right")}
+              title="Align Right"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="14" y1="2" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="4" y="4" width="8" height="3" fill="currentColor" />
+                <rect x="7" y="9" width="5" height="3" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("top")}
+              title="Align Top"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="4" y="4" width="3" height="8" fill="currentColor" />
+                <rect x="9" y="4" width="3" height="5" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("centerY")}
+              title="Align Center Y"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="4" y="3" width="3" height="10" fill="currentColor" />
+                <rect x="9" y="5.5" width="3" height="5" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="property-panel__icon-btn"
+              onClick={() => alignSelected("bottom")}
+              title="Align Bottom"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="4" y="4" width="3" height="8" fill="currentColor" />
+                <rect x="9" y="7" width="3" height="5" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 3: Single element selected
+  const node = selectedList[0];
+  const { geometry, style } = node;
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateNodeName(node.id, e.target.value);
+  };
+
+  const handleGeomChange = (key: keyof typeof geometry, value: number) => {
+    if (isNaN(value)) return;
+    updateNodeGeometry(node.id, { [key]: value });
+  };
+
+  const handleFillChange = (color: string) => {
+    updateNodeStyle(node.id, { fill: color });
+  };
+
+  const handleOpacityChange = (opacity: number) => {
+    updateNodeStyle(node.id, { opacity: Math.max(0, Math.min(1, opacity)) });
+  };
+
+  const handleCornerRadiusChange = (radius: number) => {
+    updateNodeStyle(node.id, { cornerRadius: Math.max(0, radius) });
+  };
+
+  const handleBorderChange = (partialBorder: Partial<NonNullable<Style["border"]>>) => {
+    updateNodeStyle(node.id, {
+      border: {
+        color: node.style.border?.color ?? "#2563EB",
+        width: node.style.border?.width ?? 1,
+        style: node.style.border?.style ?? "solid",
+        ...partialBorder,
+      },
+    });
+  };
+
+  const handleTypoChange = (partialTypo: Partial<TypographyStyle>) => {
+    const currentTypo = node.style.typography ?? {
+      fontFamily: "Inter, sans-serif",
+      fontSize: 18,
+      fontWeight: 400,
+      color: "#E4E4F0",
+      align: "left",
+      lineHeight: 1.4,
+    };
+    updateNodeStyle(node.id, {
+      typography: { ...currentTypo, ...partialTypo },
+    });
+  };
+
+  const textContent = node.content?.kind === "text" ? node.content : null;
+  const imageContent = node.content?.kind === "image" ? node.content : null;
+
+  return (
+    <div className="property-panel">
+      {/* Header */}
+      <div className="property-panel__header">
+        <input
+          type="text"
+          className="property-panel__name-input"
+          value={node.name}
+          onChange={handleNameChange}
+        />
+        <span className="property-panel__type-badge">{node.type}</span>
+      </div>
+
+      <div className="property-panel__content">
+        {/* Transform / Geometry */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Transform</span>
+          <div className="property-panel__grid">
+            <div className="property-panel__field">
+              <label>X</label>
+              <input
+                type="number"
+                value={Math.round(geometry.x)}
+                onChange={(e) => handleGeomChange("x", Number(e.target.value))}
+              />
+            </div>
+            <div className="property-panel__field">
+              <label>Y</label>
+              <input
+                type="number"
+                value={Math.round(geometry.y)}
+                onChange={(e) => handleGeomChange("y", Number(e.target.value))}
+              />
+            </div>
+            <div className="property-panel__field">
+              <label>W</label>
+              <input
+                type="number"
+                value={Math.round(geometry.width)}
+                onChange={(e) => handleGeomChange("width", Number(e.target.value))}
+              />
+            </div>
+            <div className="property-panel__field">
+              <label>H</label>
+              <input
+                type="number"
+                value={Math.round(geometry.height)}
+                onChange={(e) => handleGeomChange("height", Number(e.target.value))}
+              />
+            </div>
+            <div className="property-panel__field property-panel__field--full">
+              <label>Rotation (°)</label>
+              <input
+                type="number"
+                value={Math.round(geometry.rotation)}
+                onChange={(e) => handleGeomChange("rotation", Number(e.target.value))}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Fill & Appearance */}
+        {node.type !== "line" && node.type !== "group" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Fill & Appearance</span>
+            {node.type === "rectangle" && (
+              <div className="property-panel__row">
+                <label>Fill Color</label>
+                <div className="property-panel__color-wrapper">
+                  <input
+                    type="color"
+                    value={style.fill && style.fill !== "transparent" ? style.fill : "#E5E7EB"}
+                    onChange={(e) => handleFillChange(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="property-panel__hex-input"
+                    value={style.fill ?? "#E5E7EB"}
+                    onChange={(e) => handleFillChange(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="property-panel__row">
+              <label>Opacity</label>
+              <div className="property-panel__range-wrapper">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={style.opacity}
+                  onChange={(e) => handleOpacityChange(Number(e.target.value))}
+                />
+                <span>{Math.round(style.opacity * 100)}%</span>
+              </div>
+            </div>
+
+            {(node.type === "rectangle" || node.type === "image") && (
+              <div className="property-panel__row">
+                <label>Corner Radius</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="property-panel__num-input"
+                  value={style.cornerRadius ?? 0}
+                  onChange={(e) => handleCornerRadiusChange(Number(e.target.value))}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Border Settings */}
+        {node.type !== "group" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Border / Stroke</span>
+            <div className="property-panel__row">
+              <label>Color</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value={style.border?.color ?? "#2563EB"}
+                  onChange={(e) => handleBorderChange({ color: e.target.value })}
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  value={style.border?.color ?? "#2563EB"}
+                  onChange={(e) => handleBorderChange({ color: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Width (px)</label>
+              <input
+                type="number"
+                min="0"
+                className="property-panel__num-input"
+                value={style.border?.width ?? 0}
+                onChange={(e) => handleBorderChange({ width: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="property-panel__row">
+              <label>Style</label>
+              <select
+                className="property-panel__select"
+                value={style.border?.style ?? "solid"}
+                onChange={(e) => handleBorderChange({ style: e.target.value as "solid" | "dashed" | "dotted" })}
+              >
+                <option value="solid">Solid</option>
+                <option value="dashed">Dashed</option>
+                <option value="dotted">Dotted</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Typography Settings (Text Node Only) */}
+        {node.type === "text" && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Typography</span>
+
+            <div className="property-panel__row">
+              <label>Font Family</label>
+              <select
+                className="property-panel__select"
+                value={style.typography?.fontFamily ?? "Inter, sans-serif"}
+                onChange={(e) => handleTypoChange({ fontFamily: e.target.value })}
+              >
+                <option value="Inter, sans-serif">Inter</option>
+                <option value="Roboto, sans-serif">Roboto</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Courier New, monospace">Courier New</option>
+              </select>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Size (px)</label>
+              <input
+                type="number"
+                min="8"
+                max="200"
+                className="property-panel__num-input"
+                value={style.typography?.fontSize ?? 18}
+                onChange={(e) => handleTypoChange({ fontSize: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="property-panel__row">
+              <label>Weight</label>
+              <select
+                className="property-panel__select"
+                value={style.typography?.fontWeight ?? 400}
+                onChange={(e) => handleTypoChange({ fontWeight: Number(e.target.value) })}
+              >
+                <option value={400}>Regular (400)</option>
+                <option value={500}>Medium (500)</option>
+                <option value={600}>Semi-Bold (600)</option>
+                <option value={700}>Bold (700)</option>
+              </select>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Text Color</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value={style.typography?.color ?? "#E4E4F0"}
+                  onChange={(e) => handleTypoChange({ color: e.target.value })}
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  value={style.typography?.color ?? "#E4E4F0"}
+                  onChange={(e) => handleTypoChange({ color: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Align</label>
+              <div className="property-panel__btn-group">
+                {(["left", "center", "right"] as const).map((align) => (
+                  <button
+                    key={align}
+                    className={`property-panel__icon-btn ${
+                      style.typography?.align === align ? "property-panel__icon-btn--active" : ""
+                    }`}
+                    onClick={() => handleTypoChange({ align })}
+                  >
+                    {align.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Fit (Image Node Only) */}
+        {node.type === "image" && imageContent && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Image Fit</span>
+            <div className="property-panel__row">
+              <label>Object Fit</label>
+              <select
+                className="property-panel__select"
+                value={imageContent.fit}
+                onChange={(e) => updateImageFit(node.id, e.target.value as "cover" | "contain" | "fill")}
+              >
+                <option value="cover">Cover</option>
+                <option value="contain">Contain</option>
+                <option value="fill">Fill</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PropertyPanel;

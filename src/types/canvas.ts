@@ -1,5 +1,5 @@
-// CanvasSite data model — Phase 0 Step 2
-// Extended to support rectangle, text, image, line, group element types.
+// CanvasSite data model — Phase 0 Step 3
+// Extended to support rectangle, text, image, line, group element types + alignment guides.
 
 export type NodeId = string;
 
@@ -59,6 +59,16 @@ export interface CanvasNode {
 
 // The canvas holds a flat map of nodes, not a nested tree:
 export type NodesById = Record<NodeId, CanvasNode>;
+
+// ---------- Alignment & Snapping Types ----------
+
+export interface AlignmentGuide {
+  id: string;
+  type: "vertical" | "horizontal";
+  position: number; // X coordinate for vertical, Y coordinate for horizontal
+  start: number; // Start extent on perpendicular axis
+  end: number; // End extent on perpendicular axis
+}
 
 // ---------- Editor-only types (not part of the persisted schema) ----------
 

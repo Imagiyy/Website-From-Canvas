@@ -86,6 +86,16 @@ export function useKeyboard(fileInputRef?: React.RefObject<HTMLInputElement | nu
         return;
       }
 
+      // Keyboard Arrow Nudges (1px alone, 10px with Shift)
+      if (key === "arrowleft" || key === "arrowright" || key === "arrowup" || key === "arrowdown") {
+        e.preventDefault();
+        const step = shift ? 10 : 1;
+        const dx = key === "arrowleft" ? -step : key === "arrowright" ? step : 0;
+        const dy = key === "arrowup" ? -step : key === "arrowdown" ? step : 0;
+        store.nudgeSelected(dx, dy);
+        return;
+      }
+
       // Tool shortcuts (only when no modifier keys)
       if (!shift) {
         if (key === "v") {

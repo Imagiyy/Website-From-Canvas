@@ -9,6 +9,7 @@ import type {
   ElementType,
   TextContent,
   ImageContent,
+  AlignmentGuide,
 } from "../types/canvas";
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,7 @@ interface CanvasStoreState {
   activeTool: ActiveTool;
   clipboard: CanvasNode[] | null; // Array of nodes (to support copying groups or multi-selections)
   editingNodeId: NodeId | null; // Text node currently being edited inline
+  alignmentGuides: AlignmentGuide[];
 
   // ---- History ----
   past: Snapshot[];
@@ -41,12 +43,24 @@ interface CanvasStoreState {
 }
 
 interface CanvasStoreActions {
+  // Alignment Guides
+  setAlignmentGuides: (guides: AlignmentGuide[]) => void;
+  clearAlignmentGuides: () => void;
+
+  // Nudge
+  nudgeSelected: (dx: number, dy: number) => void;
+
   // Nodes
   addNode: (node: CanvasNode) => void;
+  updateNodeName: (id: NodeId, name: string) => void;
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
+  updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
   updateNodeContent: (id: NodeId, content: TextContent | ImageContent) => void;
   updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   deleteSelected: () => void;
+
+  // Align Actions for Selection
+  alignSelected: (type: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => void;
 
   // Selection
   selectNode: (id: NodeId | null, multiSelect?: boolean) => void;
@@ -186,6 +200,9 @@ function collectSubtreeIds(nodes: NodesById, rootId: NodeId): Set<NodeId> {
   return result;
 }
 
+// Module-level timestamp to group rapid arrow key nudges into 1 undo step
+let lastNudgeTime = 0;
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -198,8 +215,41 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   activeTool: "select",
   clipboard: null,
   editingNodeId: null,
+  alignmentGuides: [],
   past: [],
   future: [],
+
+  // -----------------------------------------------------------------------
+  // Alignment Guides & Nudge
+  // -----------------------------------------------------------------------
+  setAlignmentGuides: (guides) => {
+    set({ alignmentGuides: guides });
+  },
+
+  clearAlignmentGuides: () => {
+    set({ alignmentGuides: [] });
+  },
+
+  nudgeSelected: (dx, dy) => {
+    const state = get();
+    if (state.selectedNodeIds.size === 0) return;
+
+    const now = Date.now();
+    if (now - lastNudgeTime > 500) {
+      state.pushUndo();
+    }
+    lastNudgeTime = now;
+
+    state.selectedNodeIds.forEach((id) => {
+      const node = state.nodes[id];
+      if (node) {
+        state.updateNodeGeometry(id, {
+          x: node.geometry.x + dx,
+          y: node.geometry.y + dy,
+        });
+      }
+    });
+  },
 
   // -----------------------------------------------------------------------
   // History helpers
@@ -252,6 +302,100 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set({
       nodes: { ...state.nodes, [node.id]: node },
       selectedNodeIds: new Set([node.id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  updateNodeName: (id, name) => {
+    const state = get();
+    const node = state.nodes[id];
+    if (!node) return;
+    const snap = snapshot(state);
+    set({
+      nodes: {
+        ...state.nodes,
+        [id]: { ...node, name },
+      },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  updateNodeStyle: (id, partial) => {
+    const state = get();
+    const node = state.nodes[id];
+    if (!node) return;
+    const snap = snapshot(state);
+    set({
+      nodes: {
+        ...state.nodes,
+        [id]: {
+          ...node,
+          style: {
+            ...node.style,
+            ...partial,
+            border: partial.border
+              ? { ...node.style.border, ...partial.border }
+              : node.style.border,
+            typography: partial.typography
+              ? { ...node.style.typography, ...partial.typography }
+              : node.style.typography,
+          },
+        },
+      },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  alignSelected: (type) => {
+    const state = get();
+    if (state.selectedNodeIds.size < 2) return;
+
+    const selectedNodes = Array.from(state.selectedNodeIds)
+      .map((id) => state.nodes[id])
+      .filter((n): n is CanvasNode => n !== undefined);
+
+    if (selectedNodes.length < 2) return;
+
+    const bbox = getNodesBoundingBox(selectedNodes);
+    const snap = snapshot(state);
+    const newNodes = { ...state.nodes };
+
+    selectedNodes.forEach((node) => {
+      let newX = node.geometry.x;
+      let newY = node.geometry.y;
+
+      switch (type) {
+        case "left":
+          newX = bbox.x;
+          break;
+        case "centerX":
+          newX = bbox.x + bbox.width / 2 - node.geometry.width / 2;
+          break;
+        case "right":
+          newX = bbox.x + bbox.width - node.geometry.width;
+          break;
+        case "top":
+          newY = bbox.y;
+          break;
+        case "centerY":
+          newY = bbox.y + bbox.height / 2 - node.geometry.height / 2;
+          break;
+        case "bottom":
+          newY = bbox.y + bbox.height - node.geometry.height;
+          break;
+      }
+
+      newNodes[node.id] = {
+        ...node,
+        geometry: { ...node.geometry, x: newX, y: newY },
+      };
+    });
+
+    set({
+      nodes: newNodes,
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });

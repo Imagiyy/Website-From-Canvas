@@ -3,6 +3,7 @@ import { useCanvasStore } from "../store/canvasStore";
 import { useCanvasPointer } from "../hooks/useCanvasPointer";
 import { NodeRenderer } from "./nodes/NodeRenderer";
 import SelectionOverlay from "./SelectionOverlay";
+import AlignmentGuides from "./AlignmentGuides";
 import Toolbar from "./Toolbar";
 import { useKeyboard } from "../hooks/useKeyboard";
 import "./Canvas.css";
@@ -15,6 +16,7 @@ export const Canvas: React.FC = () => {
   const viewport = useCanvasStore((s) => s.viewport);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const editingNodeId = useCanvasStore((s) => s.editingNodeId);
+  const alignmentGuides = useCanvasStore((s) => s.alignmentGuides);
   const zoomAtPoint = useCanvasStore((s) => s.zoomAtPoint);
   const createImage = useCanvasStore((s) => s.createImage);
 
@@ -183,6 +185,12 @@ export const Canvas: React.FC = () => {
           <SelectionOverlay
             selectedNodeIds={selectedNodeIds}
             nodes={nodes}
+            zoom={viewport.zoom}
+          />
+
+          {/* Smart Alignment Guides */}
+          <AlignmentGuides
+            guides={alignmentGuides}
             zoom={viewport.zoom}
           />
         </g>

@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import type { ResizeHandle, LineEndpointHandle } from "../types/canvas";
+import { computeSnapping } from "../utils/snapping";
 
 // ---------------------------------------------------------------------------
 // Interaction Modes
@@ -368,10 +369,31 @@ export function useCanvasPointer(
         case "move": {
           const dx = canvasX - mode.startCanvasX;
           const dy = canvasY - mode.startCanvasY;
+          const targetNode = store.nodes[mode.nodeId];
+          if (!targetNode) break;
+
+          const rawX = mode.startNodeX + dx;
+          const rawY = mode.startNodeY + dy;
+
+          const snapRes = computeSnapping(
+            {
+              x: rawX,
+              y: rawY,
+              width: targetNode.geometry.width,
+              height: targetNode.geometry.height,
+              rotation: targetNode.geometry.rotation,
+            },
+            store.selectedNodeIds,
+            store.nodes,
+            store.viewport.zoom,
+            e.altKey
+          );
+
           store.updateNodeGeometry(mode.nodeId, {
-            x: mode.startNodeX + dx,
-            y: mode.startNodeY + dy,
+            x: snapRes.snappedX,
+            y: snapRes.snappedY,
           });
+          store.setAlignmentGuides(snapRes.guides);
           break;
         }
 
@@ -515,6 +537,7 @@ export function useCanvasPointer(
         drawPreviewRef.current = null;
       }
 
+      store.clearAlignmentGuides();
       modeRef.current = { type: "idle" };
     },
     []
