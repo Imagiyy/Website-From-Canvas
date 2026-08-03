@@ -151,7 +151,21 @@ export const Canvas: React.FC = () => {
   const cursorClass =
     activeTool === "text"
       ? "canvas--text"
-      : activeTool === "rectangle" || activeTool === "line"
+      : activeTool === "brush"
+      ? "canvas--brush"
+      : activeTool === "pencil"
+      ? "canvas--pencil"
+      : activeTool === "eraser"
+      ? "canvas--eraser"
+      : activeTool === "fill"
+      ? "canvas--fill"
+      : activeTool === "rectangle" ||
+        activeTool === "line" ||
+        activeTool === "polygon" ||
+        activeTool === "circle" ||
+        activeTool === "curve" ||
+        activeTool === "star" ||
+        activeTool === "shape3d"
       ? "canvas--crosshair"
       : "canvas--default";
 
@@ -200,15 +214,17 @@ export const Canvas: React.FC = () => {
             zoom={viewport.zoom}
           />
 
-          {/* Render all top-level nodes */}
-          {topLevelNodes.map((node) => (
-            <NodeRenderer
-              key={node.id}
-              node={node}
-              nodes={effectiveNodes}
-              editingNodeId={editingNodeId}
-            />
-          ))}
+          {/* Render all top-level visible nodes */}
+          {topLevelNodes
+            .filter((node) => node.visible !== false)
+            .map((node) => (
+              <NodeRenderer
+                key={node.id}
+                node={node}
+                nodes={effectiveNodes}
+                editingNodeId={editingNodeId}
+              />
+            ))}
 
           {/* Live Drag-and-Draw Shape & Outer Box Preview */}
           {preview && preview.kind === "rect" && preview.width > 0 && preview.height > 0 && (

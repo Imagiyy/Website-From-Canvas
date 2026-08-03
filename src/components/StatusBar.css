@@ -1,0 +1,123 @@
+/* StatusBar — Bottom bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  background: var(--bg-toolbar);
+  border-top: 1px solid var(--border-subtle);
+  height: 32px;
+  user-select: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.status-bar__section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar__separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+  margin: 0 4px;
+}
+
+.status-bar__spacer {
+  flex: 1;
+}
+
+.status-bar__zoom-label {
+  min-width: 44px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.status-bar__zoom-label:hover {
+  background: var(--bg-panel-hover);
+}
+
+.status-bar__slider {
+  width: 100px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.status-bar__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-toolbar);
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+}
+
+.status-bar__slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-toolbar);
+  cursor: pointer;
+}
+
+.status-bar__btn {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.status-bar__btn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.status-bar__coords {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  min-width: 90px;
+}
+
+.status-bar__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-bar__badge--saved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.status-bar__badge--nodes {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--accent);
+}

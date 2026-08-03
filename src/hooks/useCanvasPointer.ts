@@ -224,7 +224,10 @@ export function useCanvasPointer(
       }
 
       // 3. Check Node Hit
-      const nodeId = hitNodeId;
+      const rawHitNode = hitNodeId ? store.nodes[hitNodeId] : undefined;
+      const isLockedOrHidden = rawHitNode?.locked === true || rawHitNode?.visible === false;
+      const nodeId = isLockedOrHidden ? undefined : hitNodeId;
+
       if (nodeId && store.nodes[nodeId]) {
         // If Fill Bucket tool active, flood fill target node
         if (store.activeTool === "fill") {
@@ -383,15 +386,17 @@ export function useCanvasPointer(
   // -----------------------------------------------------------------------
   const onPointerMove = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      const mode = modeRef.current;
-      if (mode.type === "idle") return;
-
       const svg = e.currentTarget;
       const rect = svg.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
       const store = useCanvasStore.getState();
+
+      store.setMouseCanvasPos(canvasX, canvasY);
+
+      const mode = modeRef.current;
+      if (mode.type === "idle") return;
 
       switch (mode.type) {
         case "pan": {

@@ -7,14 +7,13 @@
   touch-action: none; /* Prevent browser gestures */
 }
 
-.canvas--default {
-  cursor: default;
-}
-
-.canvas--crosshair {
-  cursor: crosshair;
-}
-
-.canvas--text {
-  cursor: text;
-}
+/* Tool-specific cursors */
+.canvas--default { cursor: default; }
+.canvas--crosshair { cursor: crosshair; }
+.canvas--text { cursor: text; }
+.canvas--brush { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='6' fill='none' stroke='%232563EB' stroke-width='1.5'/%3E%3Ccircle cx='12' cy='12' r='1' fill='%232563EB'/%3E%3C/svg%3E") 12 12, crosshair; }
+.canvas--pencil { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M14 2l4 4-10 10H4v-4L14 2z' fill='none' stroke='%232563EB' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 2 18, crosshair; }
+.canvas--eraser { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Crect x='4' y='4' width='12' height='12' rx='2' fill='%23EF4444' opacity='0.3' stroke='%23EF4444' stroke-width='1.5'/%3E%3C/svg%3E") 10 10, crosshair; }
+.canvas--fill { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M6 2L3 8l8 8 6-6-8-8H6z' fill='none' stroke='%232563EB' stroke-width='1.5'/%3E%3Cpath d='M14 13c0 2 2 4 2 4s2-2 2-4a2 2 0 0 0-4 0z' fill='%233B82F6'/%3E%3C/svg%3E") 3 17, crosshair; }
+.canvas--grab { cursor: grab; }
+.canvas--grabbing { cursor: grabbing; }

@@ -11,6 +11,7 @@ import type {
   ImageContent,
   AlignmentGuide,
   BreakpointKey,
+  Style,
 } from "../types/canvas";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ interface CanvasStoreState {
   editingNodeId: NodeId | null; // Text node currently being edited inline
   alignmentGuides: AlignmentGuide[];
   imageUploadHandler: (() => void) | null;
+  mouseCanvasPos: { x: number; y: number };
 
   // ---- History ----
   past: Snapshot[];
@@ -66,7 +68,8 @@ interface CanvasStoreActions {
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
   updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
   updateNodeContent: (id: NodeId, content: TextContent | ImageContent, skipUndo?: boolean) => void;
-  updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
+  toggleNodeVisibility: (id: NodeId) => void;
+  toggleNodeLock: (id: NodeId) => void;
   deleteSelected: () => void;
 
   // Align & Distribute Actions for Selection
@@ -102,14 +105,22 @@ interface CanvasStoreActions {
   // Viewport (non-undoable)
   pan: (dx: number, dy: number) => void;
   zoomAtPoint: (newZoom: number, screenX: number, screenY: number) => void;
+  zoomTo: (zoom: number) => void;
   resetView: () => void;
+  setMouseCanvasPos: (x: number, y: number) => void;
+
+  // Selection
+  selectAll: () => void;
+
+  // Canvas management
+  clearCanvas: () => void;
 
   // Tool
   setActiveTool: (tool: ActiveTool) => void;
 
   // Element creation helpers
   createRectangle: (x: number, y: number, width: number, height: number) => void;
-  createText: (x: number, y: number) => void;
+  createText: (x: number, y: number, width?: number, height?: number) => void;
   createImage: (x: number, y: number, width: number, height: number, assetUrl: string) => void;
   createLine: (x1: number, y1: number, x2: number, y2: number) => void;
   createPolygon: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
@@ -230,13 +241,53 @@ function collectSubtreeIds(nodes: NodesById, rootId: NodeId): Set<NodeId> {
 let lastNudgeTime = 0;
 
 // ---------------------------------------------------------------------------
+// Auto-save helpers
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = "canvassite_project";
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function saveToLocalStorage(state: CanvasStoreState) {
+  try {
+    const data = {
+      nodes: state.nodes,
+      nextNumber: state.nextNumber,
+      activeColor: state.activeColor,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* storage full — silently fail */ }
+}
+
+function loadFromLocalStorage(): Partial<CanvasStoreState> | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data && typeof data.nodes === "object") {
+      return {
+        nodes: data.nodes as NodesById,
+        nextNumber: data.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
+        activeColor: data.activeColor ?? "#3B82F6",
+      };
+    }
+  } catch { /* corrupt data — ignore */ }
+  return null;
+}
+
+function scheduleAutoSave(state: CanvasStoreState) {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveToLocalStorage(state), 500);
+}
+
+const savedState = loadFromLocalStorage();
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
-  // ---- Initial state ----
-  nodes: {},
+  // ---- Initial state (loaded from localStorage if available) ----
+  nodes: savedState?.nodes ?? {},
   selectedNodeIds: new Set(),
-  nextNumber: { ...DEFAULT_NEXT_NUMBER },
+  nextNumber: savedState?.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
   viewport: { panX: 0, panY: 0, zoom: 1 },
   activeTool: "select",
   activeBreakpoint: "desktop",
@@ -244,7 +295,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   editingNodeId: null,
   alignmentGuides: [],
   imageUploadHandler: null,
-  activeColor: "#3B82F6",
+  activeColor: savedState?.activeColor ?? "#3B82F6",
+  mouseCanvasPos: { x: 0, y: 0 },
 
   setActiveColor: (color: string) => set({ activeColor: color }),
   past: [],
@@ -714,16 +766,52 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   updateImageFit: (id, fit) => {
     const state = get();
     const node = state.nodes[id];
-    if (!node || node.type !== "image" || !node.content || node.content.kind !== "image") return;
+    if (!node || node.type !== "image" || !node.content) return;
     const snap = snapshot(state);
     set({
       nodes: {
         ...state.nodes,
         [id]: {
           ...node,
-          content: { ...node.content, fit },
+          content: { ...node.content, kind: "image", fit },
         },
       },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  toggleNodeVisibility: (id) => {
+    const state = get();
+    const node = state.nodes[id];
+    if (!node) return;
+    const snap = snapshot(state);
+    set({
+      nodes: {
+        ...state.nodes,
+        [id]: { ...node, visible: node.visible === false ? true : false },
+      },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  toggleNodeLock: (id) => {
+    const state = get();
+    const node = state.nodes[id];
+    if (!node) return;
+    const snap = snapshot(state);
+    const newLocked = !(node.locked ?? false);
+    const newSelected = new Set(state.selectedNodeIds);
+    if (newLocked) {
+      newSelected.delete(id);
+    }
+    set({
+      nodes: {
+        ...state.nodes,
+        [id]: { ...node, locked: newLocked },
+      },
+      selectedNodeIds: newSelected,
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });
@@ -1123,6 +1211,55 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set({ viewport: { panX: 0, panY: 0, zoom: 1 } });
   },
 
+  zoomTo: (zoom) => {
+    const clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    const state = get();
+    // Zoom towards center of viewport
+    const svgEl = document.querySelector('.canvas') as SVGSVGElement | null;
+    const w = svgEl?.clientWidth ?? 800;
+    const h = svgEl?.clientHeight ?? 600;
+    const centerX = w / 2;
+    const centerY = h / 2;
+    const { panX, panY, zoom: oldZoom } = state.viewport;
+    const canvasX = (centerX - panX) / oldZoom;
+    const canvasY = (centerY - panY) / oldZoom;
+    const newPanX = centerX - canvasX * clampedZoom;
+    const newPanY = centerY - canvasY * clampedZoom;
+    set({ viewport: { panX: newPanX, panY: newPanY, zoom: clampedZoom } });
+  },
+
+  setMouseCanvasPos: (x, y) => {
+    set({ mouseCanvasPos: { x, y } });
+  },
+
+  // -----------------------------------------------------------------------
+  // Select All
+  // -----------------------------------------------------------------------
+  selectAll: () => {
+    const state = get();
+    const topLevelIds = Object.values(state.nodes)
+      .filter(n => n.parentId === null)
+      .map(n => n.id);
+    set({ selectedNodeIds: new Set(topLevelIds) });
+  },
+
+  // -----------------------------------------------------------------------
+  // Clear Canvas
+  // -----------------------------------------------------------------------
+  clearCanvas: () => {
+    const state = get();
+    const snap = snapshot(state);
+    set({
+      nodes: {},
+      selectedNodeIds: new Set(),
+      nextNumber: { ...DEFAULT_NEXT_NUMBER },
+      editingNodeId: null,
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  },
+
   // -----------------------------------------------------------------------
   // Tool
   // -----------------------------------------------------------------------
@@ -1466,3 +1603,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     });
   },
 }));
+
+// Auto-save: subscribe to node changes and debounce save to localStorage
+useCanvasStore.subscribe((state) => {
+  scheduleAutoSave(state);
+});

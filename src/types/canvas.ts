@@ -105,6 +105,8 @@ export interface CanvasNode {
   children?: NodeId[]; // only present if type === "group"
   breakpoints?: Partial<Record<"tablet" | "mobile", NodeOverride>>;
   pathData?: string; // SVG path data for freehand brush and pencil strokes
+  visible?: boolean; // false = hidden on canvas
+  locked?: boolean; // true = locked from selection and editing
 }
 
 // The canvas holds a flat map of nodes, not a nested tree:

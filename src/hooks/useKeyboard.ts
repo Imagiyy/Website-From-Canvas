@@ -77,6 +77,34 @@ export function useKeyboard(fileInputRef?: React.RefObject<HTMLInputElement | nu
         return;
       }
 
+      // Select All: Ctrl+A
+      if (ctrl && key === "a") {
+        e.preventDefault();
+        store.selectAll();
+        return;
+      }
+
+      // Reset Zoom: Ctrl+0
+      if (ctrl && key === "0") {
+        e.preventDefault();
+        store.resetView();
+        return;
+      }
+
+      // Zoom In: Ctrl+= or Ctrl++
+      if (ctrl && (key === "=" || key === "+")) {
+        e.preventDefault();
+        store.zoomTo(store.viewport.zoom * 1.2);
+        return;
+      }
+
+      // Zoom Out: Ctrl+-
+      if (ctrl && key === "-") {
+        e.preventDefault();
+        store.zoomTo(store.viewport.zoom / 1.2);
+        return;
+      }
+
       // Don't process single-key shortcuts if Ctrl is held
       if (ctrl) return;
 
@@ -122,6 +150,42 @@ export function useKeyboard(fileInputRef?: React.RefObject<HTMLInputElement | nu
         }
         if (key === "l") {
           store.setActiveTool("line");
+          return;
+        }
+        if (key === "b") {
+          store.setActiveTool("brush");
+          return;
+        }
+        if (key === "p") {
+          store.setActiveTool("pencil");
+          return;
+        }
+        if (key === "o") {
+          store.setActiveTool("circle");
+          return;
+        }
+        if (key === "s") {
+          store.setActiveTool("star");
+          return;
+        }
+        if (key === "c") {
+          store.setActiveTool("curve");
+          return;
+        }
+        if (key === "g") {
+          store.setActiveTool("polygon");
+          return;
+        }
+        if (key === "e") {
+          store.setActiveTool("eraser");
+          return;
+        }
+        if (key === "f") {
+          store.setActiveTool("fill");
+          return;
+        }
+        if (key === "3") {
+          store.setActiveTool("shape3d");
           return;
         }
         if (key === "escape") {
