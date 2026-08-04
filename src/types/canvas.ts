@@ -20,9 +20,15 @@ export type ElementType =
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
 
 export const BREAKPOINT_WIDTHS: Record<BreakpointKey, number | null> = {
-  desktop: null,
+  desktop: 1200,
   tablet: 768,
   mobile: 375,
+};
+
+export const DEFAULT_PAGE_HEIGHTS: Record<BreakpointKey, number> = {
+  desktop: 1200,
+  tablet: 1400,
+  mobile: 1600,
 };
 
 export interface Geometry {
@@ -40,6 +46,9 @@ export interface TypographyStyle {
   color: string;
   align: "left" | "center" | "right";
   lineHeight: number;
+  letterSpacing?: number; // px tracking (-5 to 20px)
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  textDecoration?: "none" | "underline" | "line-through";
 }
 
 export interface ShadowStyle {
@@ -49,8 +58,16 @@ export interface ShadowStyle {
   blur: number;
 }
 
+export interface GradientFill {
+  type: "linear" | "radial";
+  startColor: string;
+  endColor: string;
+  angle?: number; // 0-360 deg
+}
+
 export interface Style {
   fill?: string; // hex or "transparent"
+  gradient?: GradientFill; // Linear / radial gradient fill override
   opacity: number; // 0-1
   border?: {
     color: string;
@@ -111,6 +128,16 @@ export interface CanvasNode {
 
 // The canvas holds a flat map of nodes, not a nested tree:
 export type NodesById = Record<NodeId, CanvasNode>;
+
+// Multi-Page Support
+export interface CanvasPage {
+  id: string;
+  name: string;
+  slug: string;
+  nodes: NodesById;
+}
+
+export type PagesById = Record<string, CanvasPage>;
 
 // ---------- Alignment & Snapping Types ----------
 

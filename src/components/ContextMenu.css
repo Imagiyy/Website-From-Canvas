@@ -1,0 +1,83 @@
+/* ====================================================================
+   Context Menu Component
+   ==================================================================== */
+.context-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 180px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  user-select: none;
+  font-family: inherit;
+  backdrop-filter: blur(12px);
+  animation: contextMenuFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.context-menu__item:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.context-menu__item:hover:not(:disabled) .context-menu__shortcut {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.context-menu__item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.context-menu__item--danger:hover:not(:disabled) {
+  background: var(--danger) !important;
+  color: white !important;
+}
+
+.context-menu__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-menu__shortcut {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.context-menu__divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}

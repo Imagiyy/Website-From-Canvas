@@ -5,16 +5,50 @@ import { NodeRenderer } from "./nodes/NodeRenderer";
 import SelectionOverlay from "./SelectionOverlay";
 import AlignmentGuides from "./AlignmentGuides";
 import BreakpointFrame from "./BreakpointFrame";
-import Toolbar from "./Toolbar";
+import Rulers from "./Rulers";
 import { useKeyboard } from "../hooks/useKeyboard";
 import { getEffectiveNodesMap } from "../utils/breakpoint";
 import "./Canvas.css";
 
 const ZOOM_FACTOR = 1.1;
 
-export const Canvas: React.FC = () => {
+function isNodeInViewport(
+  node: import("../types/canvas").CanvasNode,
+  viewport: { panX: number; panY: number; zoom: number },
+  svgRect: DOMRect | null,
+  selectedNodeIds: Set<string>,
+  editingNodeId: string | null
+): boolean {
+  if (selectedNodeIds.has(node.id) || editingNodeId === node.id) return true;
+  if (!svgRect || svgRect.width === 0 || svgRect.height === 0) return true;
+
+  const buffer = 300 / viewport.zoom;
+  const viewMinX = -viewport.panX / viewport.zoom - buffer;
+  const viewMinY = -viewport.panY / viewport.zoom - buffer;
+  const viewMaxX = (svgRect.width - viewport.panX) / viewport.zoom + buffer;
+  const viewMaxY = (svgRect.height - viewport.panY) / viewport.zoom + buffer;
+
+  const nodeMinX = node.geometry.x;
+  const nodeMinY = node.geometry.y;
+  const nodeMaxX = node.geometry.x + Math.max(1, node.geometry.width);
+  const nodeMaxY = node.geometry.y + Math.max(1, node.geometry.height);
+
+  return (
+    nodeMaxX >= viewMinX &&
+    nodeMinX <= viewMaxX &&
+    nodeMaxY >= viewMinY &&
+    nodeMinY <= viewMaxY
+  );
+}
+
+interface Props {
+  onContextMenu?: (e: React.MouseEvent, nodeId?: string | null) => void;
+}
+
+export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
   const nodes = useCanvasStore((s) => s.nodes);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
+  const selectNode = useCanvasStore((s) => s.selectNode);
   const viewport = useCanvasStore((s) => s.viewport);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
@@ -26,6 +60,10 @@ export const Canvas: React.FC = () => {
   const updateNodeContent = useCanvasStore((s) => s.updateNodeContent);
   const setEditingNode = useCanvasStore((s) => s.setEditingNode);
 
+  const showGrid = useCanvasStore((s) => s.showGrid);
+  const gridSize = useCanvasStore((s) => s.gridSize);
+  const showRulers = useCanvasStore((s) => s.showRulers);
+  const mouseCanvasPos = useCanvasStore((s) => s.mouseCanvasPos);
   const activeColor = useCanvasStore((s) => s.activeColor);
 
   // Resolve effective nodes for active breakpoint
@@ -185,26 +223,40 @@ export const Canvas: React.FC = () => {
         className={`canvas ${cursorClass}`}
         {...handlers}
         onWheel={onWheel}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const targetEl = e.target as HTMLElement | SVGElement;
+          const closestNodeEl = targetEl.closest?.("[data-node-id]");
+          const hitNodeId = closestNodeEl?.getAttribute("data-node-id") ?? targetEl.getAttribute("data-node-id");
+          if (hitNodeId && !selectedNodeIds.has(hitNodeId)) {
+            selectNode(hitNodeId);
+          }
+          if (onContextMenu) {
+            onContextMenu(e, hitNodeId ?? undefined);
+          }
+        }}
       >
         {/* Dot grid background pattern */}
-        <defs>
-          <pattern
-            id="dotGrid"
-            width={20 / viewport.zoom}
-            height={20 / viewport.zoom}
-            patternUnits="userSpaceOnUse"
-            patternTransform={`translate(${viewport.panX / viewport.zoom}, ${viewport.panY / viewport.zoom})`}
-          >
-            <circle
-              cx={1 / viewport.zoom}
-              cy={1 / viewport.zoom}
-              r={1 / viewport.zoom}
-              fill="rgba(255,255,255,0.08)"
-            />
-          </pattern>
-        </defs>
+        {showGrid && (
+          <defs>
+            <pattern
+              id="dotGrid"
+              width={gridSize * viewport.zoom}
+              height={gridSize * viewport.zoom}
+              patternUnits="userSpaceOnUse"
+              patternTransform={`translate(${viewport.panX}, ${viewport.panY})`}
+            >
+              <circle
+                cx={gridSize * viewport.zoom}
+                cy={gridSize * viewport.zoom}
+                r={1}
+                fill="rgba(255,255,255,0.15)"
+              />
+            </pattern>
+          </defs>
+        )}
         <rect width="100%" height="100%" fill="#1a1a2e" />
-        <rect width="100%" height="100%" fill="url(#dotGrid)" />
+        {showGrid && <rect width="100%" height="100%" fill="url(#dotGrid)" />}
 
         {/* Camera transform group */}
         <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
@@ -214,9 +266,19 @@ export const Canvas: React.FC = () => {
             zoom={viewport.zoom}
           />
 
-          {/* Render all top-level visible nodes */}
+          {/* Render all top-level visible nodes in viewport */}
           {topLevelNodes
-            .filter((node) => node.visible !== false)
+            .filter(
+              (node) =>
+                node.visible !== false &&
+                isNodeInViewport(
+                  node,
+                  viewport,
+                  svgRef.current?.getBoundingClientRect() ?? null,
+                  selectedNodeIds,
+                  editingNodeId
+                )
+            )
             .map((node) => (
               <NodeRenderer
                 key={node.id}
@@ -361,12 +423,16 @@ export const Canvas: React.FC = () => {
             width: `${editingNode.geometry.width * viewport.zoom}px`,
             height: `${editingNode.geometry.height * viewport.zoom}px`,
             transform: editingNode.geometry.rotation ? `rotate(${editingNode.geometry.rotation}deg)` : undefined,
+            transformOrigin: "center center",
             fontFamily: editingNode.style.typography?.fontFamily ?? "Inter, sans-serif",
             fontSize: `${(editingNode.style.typography?.fontSize ?? 18) * viewport.zoom}px`,
             fontWeight: editingNode.style.typography?.fontWeight ?? 400,
             color: editingNode.style.typography?.color ?? "#E4E4F0",
             textAlign: editingNode.style.typography?.align ?? "left",
             lineHeight: editingNode.style.typography?.lineHeight ?? 1.4,
+            letterSpacing: editingNode.style.typography?.letterSpacing ? `${editingNode.style.typography.letterSpacing * viewport.zoom}px` : undefined,
+            textTransform: editingNode.style.typography?.textTransform ?? "none",
+            textDecoration: editingNode.style.typography?.textDecoration ?? "none",
             background: "rgba(15, 15, 26, 0.96)",
             outline: "2px solid #2563EB",
             outlineOffset: "2px",
@@ -377,6 +443,13 @@ export const Canvas: React.FC = () => {
             boxSizing: "border-box",
             zIndex: 1000,
           }}
+        />
+      )}
+      {showRulers && (
+        <Rulers
+          viewport={viewport}
+          mouseCanvasPos={mouseCanvasPos}
+          visible={showRulers}
         />
       )}
     </>

@@ -6,7 +6,7 @@ interface Props {
 }
 
 /**
- * Renders a single rectangle as an SVG <rect>.
+ * Renders a single rectangle as an SVG <rect> with gradient support.
  */
 export const RectNode: React.FC<Props> = React.memo(({ node }) => {
   const { geometry, style } = node;
@@ -32,23 +32,42 @@ export const RectNode: React.FC<Props> = React.memo(({ node }) => {
     ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
     : undefined;
 
+  const grad = style.gradient;
+  const gradId = `grad-${node.id}`;
+  const angle = grad?.angle ?? 135;
+  const angleRad = ((angle - 90) * Math.PI) / 180;
+  const x1 = `${Math.round(50 + Math.cos(angleRad) * 50)}%`;
+  const y1 = `${Math.round(50 + Math.sin(angleRad) * 50)}%`;
+  const x2 = `${Math.round(50 - Math.cos(angleRad) * 50)}%`;
+  const y2 = `${Math.round(50 - Math.sin(angleRad) * 50)}%`;
+
   return (
-    <rect
-      data-node-id={node.id}
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      rx={style.cornerRadius ?? 0}
-      ry={style.cornerRadius ?? 0}
-      fill={style.fill ?? "#E5E7EB"}
-      fillOpacity={style.opacity}
-      stroke={style.border?.color ?? "none"}
-      strokeWidth={style.border?.width ?? 0}
-      strokeDasharray={strokeDasharray}
-      transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}
-      style={{ cursor: "move", filter: filterStyle }}
-    />
+    <g>
+      {grad && (
+        <defs>
+          <linearGradient id={gradId} x1={x1} y1={y1} x2={x2} y2={y2}>
+            <stop offset="0%" stopColor={grad.startColor} />
+            <stop offset="100%" stopColor={grad.endColor} />
+          </linearGradient>
+        </defs>
+      )}
+      <rect
+        data-node-id={node.id}
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={style.cornerRadius ?? 0}
+        ry={style.cornerRadius ?? 0}
+        fill={grad ? `url(#${gradId})` : style.fill ?? "#E5E7EB"}
+        fillOpacity={style.opacity}
+        stroke={style.border?.color ?? "none"}
+        strokeWidth={style.border?.width ?? 0}
+        strokeDasharray={strokeDasharray}
+        transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}
+        style={{ cursor: "move", filter: filterStyle }}
+      />
+    </g>
   );
 });
 

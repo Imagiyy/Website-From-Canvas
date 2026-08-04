@@ -80,20 +80,27 @@ const IconForType: React.FC<{ type: ElementType }> = ({ type }) => {
   }
 };
 
+interface LayerPanelProps {
+  onContextMenu?: (e: React.MouseEvent, nodeId: string) => void;
+}
+
 const LayerItem: React.FC<{
   node: CanvasNode;
   nodes: NodesById;
   selectedNodeIds: Set<NodeId>;
   depth?: number;
-}> = ({ node, nodes, selectedNodeIds, depth = 0 }) => {
+  onContextMenu?: (e: React.MouseEvent, nodeId: string) => void;
+}> = ({ node, nodes, selectedNodeIds, depth = 0, onContextMenu }) => {
   const selectNode = useCanvasStore((s) => s.selectNode);
   const updateNodeName = useCanvasStore((s) => s.updateNodeName);
   const toggleNodeVisibility = useCanvasStore((s) => s.toggleNodeVisibility);
   const toggleNodeLock = useCanvasStore((s) => s.toggleNodeLock);
+  const reorderNodes = useCanvasStore((s) => s.reorderNodes);
 
   const [collapsed, setCollapsed] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameText, setNameText] = useState(node.name);
+  const [dropPosition, setDropPosition] = useState<"before" | "after" | "inside" | null>(null);
 
   const isSelected = selectedNodeIds.has(node.id);
   const isHidden = node.visible === false;
@@ -107,10 +114,77 @@ const LayerItem: React.FC<{
         .sort((a, b) => b.order - a.order)
     : [];
 
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isLocked || isEditingName) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData("text/plain", node.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const height = rect.height;
+
+    if (node.type === "group") {
+      if (relY < height * 0.25) {
+        setDropPosition("before");
+      } else if (relY > height * 0.75) {
+        setDropPosition("after");
+      } else {
+        setDropPosition("inside");
+      }
+    } else {
+      if (relY < height * 0.5) {
+        setDropPosition("before");
+      } else {
+        setDropPosition("after");
+      }
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropPosition(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const draggedId = e.dataTransfer.getData("text/plain");
+    const pos = dropPosition ?? "after";
+    setDropPosition(null);
+
+    if (draggedId && draggedId !== node.id) {
+      reorderNodes(draggedId, node.id, pos);
+    }
+  };
+
   return (
-    <div className={`layer-panel__item-wrapper ${isHidden ? "layer-panel__item-wrapper--hidden" : ""}`}>
+    <div
+      className={`layer-panel__item-wrapper ${isHidden ? "layer-panel__item-wrapper--hidden" : ""} ${
+        dropPosition ? `layer-panel__item-wrapper--drop-${dropPosition}` : ""
+      }`}
+    >
       <button
-        className={`layer-panel__item ${isSelected ? "layer-panel__item--selected" : ""} ${isLocked ? "layer-panel__item--locked" : ""}`}
+        draggable={!isLocked && !isEditingName}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onContextMenu={(e) => {
+          if (onContextMenu) {
+            onContextMenu(e, node.id);
+          }
+        }}
+        className={`layer-panel__item ${isSelected ? "layer-panel__item--selected" : ""} ${
+          isLocked ? "layer-panel__item--locked" : ""
+        }`}
         style={{ paddingLeft: `${10 + depth * 16}px` }}
         onClick={(e) => {
           if (!isLocked) {
@@ -159,7 +233,7 @@ const LayerItem: React.FC<{
               e.stopPropagation();
               setIsEditingName(true);
             }}
-            title="Double-click to rename"
+            title="Double-click to rename (Right-click for options)"
           >
             {node.name}
           </span>
@@ -211,6 +285,7 @@ const LayerItem: React.FC<{
               nodes={nodes}
               selectedNodeIds={selectedNodeIds}
               depth={depth + 1}
+              onContextMenu={onContextMenu}
             />
           ))}
         </div>
@@ -219,9 +294,19 @@ const LayerItem: React.FC<{
   );
 };
 
-export const LayerPanel: React.FC = () => {
+export const LayerPanel: React.FC<LayerPanelProps> = ({ onContextMenu }) => {
   const nodes = useCanvasStore((s) => s.nodes);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
+  const pages = useCanvasStore((s) => s.pages);
+  const activePageId = useCanvasStore((s) => s.activePageId);
+  const addPage = useCanvasStore((s) => s.addPage);
+  const deletePage = useCanvasStore((s) => s.deletePage);
+  const renamePage = useCanvasStore((s) => s.renamePage);
+  const setActivePage = useCanvasStore((s) => s.setActivePage);
+
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [pageNameInput, setPageNameInput] = useState("");
+  const pageList = Object.values(pages);
 
   const topLevelNodes = Object.values(nodes)
     .filter((n) => n.parentId === null)
@@ -229,6 +314,90 @@ export const LayerPanel: React.FC = () => {
 
   return (
     <div className="layer-panel">
+      {/* Pages Section */}
+      <div className="layer-panel__pages-section">
+        <div className="layer-panel__header">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M2 6H14" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+          <span>Pages</span>
+          <button
+            className="layer-panel__add-page-btn"
+            onClick={() => addPage()}
+            title="Add New Page"
+          >
+            +
+          </button>
+        </div>
+        <div className="layer-panel__page-list">
+          {pageList.map((p) => {
+            const isActive = p.id === activePageId;
+            const isEditing = editingPageId === p.id;
+            return (
+              <div
+                key={p.id}
+                className={`layer-panel__page-item ${isActive ? "layer-panel__page-item--active" : ""}`}
+                onClick={() => setActivePage(p.id)}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" opacity="0.6">
+                  <path d="M4 2H10L14 6V14H4V2Z" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M10 2V6H14" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="layer-panel__name-input"
+                    value={pageNameInput}
+                    autoFocus
+                    onChange={(e) => setPageNameInput(e.target.value)}
+                    onBlur={() => {
+                      if (pageNameInput.trim()) renamePage(p.id, pageNameInput.trim());
+                      setEditingPageId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (pageNameInput.trim()) renamePage(p.id, pageNameInput.trim());
+                        setEditingPageId(null);
+                      } else if (e.key === "Escape") {
+                        setEditingPageId(null);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="layer-panel__name"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingPageId(p.id);
+                      setPageNameInput(p.name);
+                    }}
+                    title="Double-click to rename page"
+                  >
+                    {p.name} <span style={{ fontSize: 10, opacity: 0.6 }}>({p.slug}.html)</span>
+                  </span>
+                )}
+
+                {pageList.length > 1 && (
+                  <button
+                    className="layer-panel__action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePage(p.id);
+                    }}
+                    title="Delete Page"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Layers Section */}
       <div className="layer-panel__header">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
           <path d="M8 1L1 5L8 9L15 5L8 1Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -241,9 +410,13 @@ export const LayerPanel: React.FC = () => {
       <div className="layer-panel__list">
         {topLevelNodes.length === 0 ? (
           <div className="layer-panel__empty">
-            No elements yet.
-            <br />
-            Select a tool to add shapes, text, images, or lines.
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1L1 5L8 9L15 5L8 1Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+              <path d="M1 8L8 12L15 8" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 11L8 15L15 11" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>No elements yet</span>
+            <span style={{ fontSize: 11 }}>Use the toolbar to add shapes, text, images, or lines.</span>
           </div>
         ) : (
           topLevelNodes.map((node) => (
@@ -252,6 +425,7 @@ export const LayerPanel: React.FC = () => {
               node={node}
               nodes={nodes}
               selectedNodeIds={selectedNodeIds}
+              onContextMenu={onContextMenu}
             />
           ))
         )}

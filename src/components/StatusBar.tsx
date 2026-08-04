@@ -14,6 +14,14 @@ export const StatusBar: React.FC = () => {
   const clearCanvas = useCanvasStore((s) => s.clearCanvas);
   const activeTool = useCanvasStore((s) => s.activeTool);
 
+  const showGrid = useCanvasStore((s) => s.showGrid);
+  const gridSize = useCanvasStore((s) => s.gridSize);
+  const snapToGrid = useCanvasStore((s) => s.snapToGrid);
+  const showRulers = useCanvasStore((s) => s.showRulers);
+  const toggleShowGrid = useCanvasStore((s) => s.toggleShowGrid);
+  const toggleSnapToGrid = useCanvasStore((s) => s.toggleSnapToGrid);
+  const toggleShowRulers = useCanvasStore((s) => s.toggleShowRulers);
+
   const zoomPercent = Math.round(viewport.zoom * 100);
   const nodeCount = Object.keys(nodes).length;
   const selCount = selectedNodeIds.size;
@@ -87,6 +95,36 @@ export const StatusBar: React.FC = () => {
         ))}
         <button className="status-bar__btn" onClick={resetView} title="Reset View">
           Fit
+        </button>
+      </div>
+
+      <div className="status-bar__separator" />
+
+      {/* Grid & Ruler Toggles */}
+      <div className="status-bar__section">
+        <button
+          className="status-bar__btn"
+          onClick={toggleShowGrid}
+          style={showGrid ? { color: "var(--accent)", fontWeight: 600 } : undefined}
+          title="Toggle Grid Overlay"
+        >
+          Grid: {gridSize}px {showGrid ? "ON" : "OFF"}
+        </button>
+        <button
+          className="status-bar__btn"
+          onClick={toggleSnapToGrid}
+          style={snapToGrid ? { color: "var(--accent)", fontWeight: 600 } : undefined}
+          title="Toggle Snap to Grid"
+        >
+          Snap: {snapToGrid ? "ON" : "OFF"}
+        </button>
+        <button
+          className="status-bar__btn"
+          onClick={toggleShowRulers}
+          style={showRulers ? { color: "var(--accent)", fontWeight: 600 } : undefined}
+          title="Toggle Canvas Rulers"
+        >
+          Rulers: {showRulers ? "ON" : "OFF"}
         </button>
       </div>
 

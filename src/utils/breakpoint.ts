@@ -1,48 +1,83 @@
-import type { CanvasNode, BreakpointKey } from "../types/canvas";
+import { BREAKPOINT_WIDTHS, type CanvasNode, type BreakpointKey } from "../types/canvas";
 
 /**
  * Resolves and merges a CanvasNode's base properties with active breakpoint overrides.
- * - If activeBreakpoint === "desktop" or no override exists for the active breakpoint,
- *   returns the base node.
- * - Otherwise, merges geometry and style overrides over the base node.
+ * - If activeBreakpoint === "desktop", returns the base node.
+ * - If an explicit override exists for tablet/mobile, merges geometry & style overrides over base node.
+ * - If no explicit override exists yet, computes a smart proportional auto-fit for tablet (768px) or mobile (375px)
+ *   so elements dynamically adapt to mobile/tablet device width without spilling out!
  */
 export function getEffectiveNode(
   node: CanvasNode,
   activeBreakpoint: BreakpointKey
 ): CanvasNode {
-  if (activeBreakpoint === "desktop" || !node.breakpoints) {
+  if (activeBreakpoint === "desktop") {
     return node;
   }
 
-  const override = node.breakpoints[activeBreakpoint];
-  if (!override) {
-    return node;
+  const baseWidth = BREAKPOINT_WIDTHS.desktop ?? 1200;
+  const targetWidth = BREAKPOINT_WIDTHS[activeBreakpoint] ?? 375;
+  const ratio = targetWidth / baseWidth;
+
+  const override = node.breakpoints?.[activeBreakpoint];
+
+  if (override) {
+    const mergedGeometry = override.geometry
+      ? { ...node.geometry, ...override.geometry }
+      : node.geometry;
+
+    const mergedStyle = override.style
+      ? {
+          ...node.style,
+          ...override.style,
+          border: override.style.border
+            ? { ...node.style.border, ...override.style.border }
+            : node.style.border,
+          typography: override.style.typography
+            ? { ...node.style.typography, ...override.style.typography }
+            : node.style.typography,
+          shadow: override.style.shadow
+            ? { ...node.style.shadow, ...override.style.shadow }
+            : node.style.shadow,
+        }
+      : node.style;
+
+    return {
+      ...node,
+      geometry: mergedGeometry,
+      style: mergedStyle,
+    };
   }
 
-  const mergedGeometry = override.geometry
-    ? { ...node.geometry, ...override.geometry }
-    : node.geometry;
+  // No explicit override exists yet — compute smart proportional auto-fit for mobile/tablet frame
+  const autoW = Math.max(20, Math.min(targetWidth - 10, Math.round(node.geometry.width * ratio)));
+  const autoH = Math.max(15, Math.round(node.geometry.height * Math.max(0.7, ratio)));
+  const rawX = Math.round(node.geometry.x * ratio);
+  const autoX = Math.max(5, Math.min(targetWidth - autoW - 5, rawX));
+  const autoY = Math.round(node.geometry.y * Math.max(0.75, ratio));
 
-  const mergedStyle = override.style
-    ? {
-        ...node.style,
-        ...override.style,
-        border: override.style.border
-          ? { ...node.style.border, ...override.style.border }
-          : node.style.border,
-        typography: override.style.typography
-          ? { ...node.style.typography, ...override.style.typography }
-          : node.style.typography,
-        shadow: override.style.shadow
-          ? { ...node.style.shadow, ...override.style.shadow }
-          : node.style.shadow,
-      }
-    : node.style;
+  const autoFontSize = node.style.typography
+    ? Math.max(12, Math.round(node.style.typography.fontSize * Math.max(0.7, ratio)))
+    : undefined;
 
   return {
     ...node,
-    geometry: mergedGeometry,
-    style: mergedStyle,
+    geometry: {
+      ...node.geometry,
+      x: autoX,
+      y: autoY,
+      width: autoW,
+      height: autoH,
+    },
+    style: {
+      ...node.style,
+      typography: node.style.typography
+        ? {
+            ...node.style.typography,
+            fontSize: autoFontSize!,
+          }
+        : node.style.typography,
+    },
   };
 }
 

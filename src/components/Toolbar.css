@@ -1,109 +1,272 @@
-/* Toolbar */
+/* ====================================================================
+   Paint-Style Ribbon Toolbar
+   ==================================================================== */
 .toolbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border-subtle);
+  user-select: none;
+  padding: 0 8px;
+  height: 82px;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Hide scrollbar but keep scroll behavior */
+.toolbar::-webkit-scrollbar { height: 3px; }
+.toolbar::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
+
+/* ---- Group ---- */
+.toolbar__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px 2px;
+  position: relative;
+}
+
+.toolbar__group-content {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  background: var(--bg-toolbar);
-  border-bottom: 1px solid var(--border-subtle);
-  min-height: 44px;
-  user-select: none;
-}
-
-.toolbar__section {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar__separator {
-  width: 1px;
-  height: 24px;
-  background: var(--border-subtle);
-  margin: 0 6px;
-}
-
-.toolbar__spacer {
   flex: 1;
 }
 
-.toolbar__label {
-  font-size: 10px;
+.toolbar__group-label {
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  margin-right: 4px;
+  padding-top: 2px;
+  white-space: nowrap;
 }
 
-.toolbar__btn {
+/* Separator between groups */
+.toolbar__group-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-subtle);
+  margin: 8px 0;
+  flex-shrink: 0;
+}
+
+/* ---- Tool Grid (2-row icon layout like Paint) ---- */
+.toolbar__tool-grid {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-auto-flow: column;
+  gap: 2px;
+}
+
+/* ---- Icon Button (small square) ---- */
+.toolbar__icon-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 8px;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
 }
 
-.toolbar__btn:hover:not(:disabled) {
+.toolbar__icon-btn:hover:not(:disabled) {
   background: var(--bg-panel-hover);
   color: var(--text-primary);
 }
 
-.toolbar__btn--active {
+.toolbar__icon-btn--active {
   background: var(--accent) !important;
   color: #fff !important;
 }
 
-.toolbar__btn:disabled {
+.toolbar__icon-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.toolbar__btn--primary {
-  background: var(--accent) !important;
-  color: white !important;
-  font-weight: 600;
-
-  &:hover:not(:disabled) {
-    background: var(--accent-hover) !important;
-  }
-}
-
-.toolbar__btn--danger:hover:not(:disabled) {
+.toolbar__icon-btn--danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger-hover);
 }
 
-/* Color Swatch Picker */
-.toolbar__color-picker {
+/* ---- Labeled Button (icon + text, for larger actions) ---- */
+.toolbar__labeled-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
   color: var(--text-secondary);
-  position: relative;
-  transition: background 0.15s;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
 }
 
-.toolbar__color-picker:hover {
+.toolbar__labeled-btn:hover:not(:disabled) {
   background: var(--bg-panel-hover);
   color: var(--text-primary);
 }
 
+.toolbar__labeled-btn--active {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.toolbar__labeled-btn--primary {
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+.toolbar__labeled-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover) !important;
+}
+
+.toolbar__labeled-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---- Color Swatch ---- */
+.toolbar__color-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbar__color-main {
+  position: relative;
+  cursor: pointer;
+}
+
 .toolbar__color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.toolbar__color-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.toolbar__color-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  top: 0;
+  left: 0;
+}
+
+.toolbar__color-presets {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-width: 90px;
+}
+
+.toolbar__color-preset {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.toolbar__color-preset:hover {
+  transform: scale(1.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---- View Mode Buttons ---- */
+.toolbar__view-btns {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.toolbar__view-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.toolbar__view-btn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.toolbar__view-btn--active {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* ---- Spacer ---- */
+.toolbar__spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+/* ---- Slider ---- */
+.toolbar__size-slider {
+  width: 60px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.toolbar__size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: var(--accent);
+  border: 1.5px solid var(--bg-toolbar);
+  cursor: pointer;
+}
+
+.toolbar__size-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
+  text-align: center;
 }

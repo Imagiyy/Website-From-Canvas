@@ -1,4 +1,6 @@
-/* Property Inspector Panel */
+/* ====================================================================
+   Property Inspector Panel — Right Sidebar
+   ==================================================================== */
 .property-panel {
   width: 260px;
   min-width: 260px;
@@ -33,6 +35,7 @@
   font-family: inherit;
   font-weight: 600;
   padding: 2px 4px;
+  transition: border-color 0.15s, background 0.15s;
 
   &:hover {
     border-color: var(--border-subtle);
@@ -83,6 +86,7 @@
   border-radius: 4px;
 }
 
+/* Empty State */
 .property-panel__empty {
   flex: 1;
   display: flex;
@@ -107,6 +111,7 @@
   line-height: 1.5;
 }
 
+/* Custom scrollbar */
 .property-panel__content {
   flex: 1;
   overflow-y: auto;
@@ -116,10 +121,26 @@
   gap: 16px;
 }
 
+.property-panel__content::-webkit-scrollbar { width: 5px; }
+.property-panel__content::-webkit-scrollbar-track { background: transparent; }
+.property-panel__content::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+.property-panel__content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Sections */
 .property-panel__section {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.property-panel__section + .property-panel__section {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .property-panel__section-header {
@@ -136,12 +157,14 @@
   color: var(--text-muted);
 }
 
+/* Grid layout for position/size fields */
 .property-panel__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
+/* Fields */
 .property-panel__field {
   display: flex;
   align-items: center;
@@ -150,6 +173,11 @@
   border: 1px solid var(--border-subtle);
   border-radius: 5px;
   padding: 4px 8px;
+  transition: border-color 0.15s;
+}
+
+.property-panel__field:focus-within {
+  border-color: var(--accent);
 }
 
 .property-panel__field--full {
@@ -161,6 +189,7 @@
   font-weight: 600;
   color: var(--text-muted);
   width: 14px;
+  flex-shrink: 0;
 }
 
 .property-panel__field input {
@@ -174,6 +203,7 @@
   outline: none;
 }
 
+/* Row layout */
 .property-panel__row {
   display: flex;
   align-items: center;
@@ -183,6 +213,7 @@
   color: var(--text-secondary);
 }
 
+/* Color picker */
 .property-panel__color-wrapper {
   display: flex;
   align-items: center;
@@ -192,11 +223,12 @@
 .property-panel__color-wrapper input[type="color"] {
   -webkit-appearance: none;
   border: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   cursor: pointer;
   background: transparent;
+  padding: 0;
 }
 
 .property-panel__color-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
@@ -205,9 +237,10 @@
 
 .property-panel__color-wrapper input[type="color"]::-webkit-color-swatch {
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
+/* Swatches */
 .property-panel__swatches {
   display: flex;
   flex-wrap: wrap;
@@ -220,10 +253,10 @@
   height: 18px;
   border-radius: 4px;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  transition: transform 0.12s, box-shadow 0.12s;
 
   &:hover {
-    transform: scale(1.15);
+    transform: scale(1.2);
   }
 }
 
@@ -231,8 +264,9 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+/* Hex input */
 .property-panel__hex-input {
-  width: 65px;
+  width: 70px;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
@@ -241,8 +275,14 @@
   font-size: 11px;
   padding: 3px 6px;
   outline: none;
+  transition: border-color 0.15s;
 }
 
+.property-panel__hex-input:focus {
+  border-color: var(--accent);
+}
+
+/* Number input */
 .property-panel__num-input {
   width: 65px;
   background: var(--bg-app);
@@ -253,8 +293,14 @@
   font-size: 11px;
   padding: 3px 6px;
   outline: none;
+  transition: border-color 0.15s;
 }
 
+.property-panel__num-input:focus {
+  border-color: var(--accent);
+}
+
+/* Range slider */
 .property-panel__range-wrapper {
   display: flex;
   align-items: center;
@@ -271,8 +317,10 @@
   color: var(--text-muted);
   width: 32px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
+/* Select */
 .property-panel__select {
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
@@ -282,8 +330,14 @@
   font-size: 11px;
   padding: 3px 6px;
   outline: none;
+  transition: border-color 0.15s;
 }
 
+.property-panel__select:focus {
+  border-color: var(--accent);
+}
+
+/* Button group (toggle) */
 .property-panel__btn-group {
   display: flex;
   align-items: center;
@@ -317,6 +371,7 @@
   }
 }
 
+/* Icon button */
 .property-panel__icon-btn {
   display: flex;
   align-items: center;
@@ -329,6 +384,7 @@
   cursor: pointer;
   font-size: 10px;
   font-weight: 600;
+  transition: background 0.12s, color 0.12s;
 
   &:hover {
     color: var(--text-primary);
@@ -341,6 +397,7 @@
   color: white !important;
 }
 
+/* Textarea */
 .property-panel__textarea {
   width: 100%;
   background: var(--bg-app);
@@ -353,6 +410,7 @@
   outline: none;
   resize: vertical;
   line-height: 1.4;
+  transition: border-color 0.15s;
 
   &:focus {
     border-color: var(--accent);

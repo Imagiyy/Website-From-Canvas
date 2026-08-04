@@ -1,0 +1,83 @@
+/* ====================================================================
+   Canvas Rulers Component
+   ==================================================================== */
+.rulers-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+  user-select: none;
+}
+
+.rulers-corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--text-muted);
+  z-index: 102;
+}
+
+.ruler-top {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 0;
+  height: 24px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  z-index: 101;
+}
+
+.ruler-left {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  bottom: 0;
+  width: 24px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  z-index: 101;
+}
+
+.ruler-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ruler-tick {
+  stroke: var(--text-muted);
+  stroke-width: 1px;
+  opacity: 0.4;
+}
+
+.ruler-tick--major {
+  opacity: 0.8;
+}
+
+.ruler-text {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  font-family: inherit;
+  pointer-events: none;
+}
+
+.ruler-guide-indicator {
+  stroke: var(--accent);
+  stroke-width: 1px;
+}

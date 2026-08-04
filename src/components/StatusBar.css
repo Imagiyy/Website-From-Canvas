@@ -7,9 +7,12 @@
   background: var(--bg-toolbar);
   border-top: 1px solid var(--border-subtle);
   height: 32px;
+  min-height: 32px;
   user-select: none;
   font-size: 11px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow-x: auto;
 }
 
 .status-bar__section {

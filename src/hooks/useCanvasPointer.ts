@@ -48,6 +48,11 @@ type InteractionMode =
       nodeCenterY: number;
       startAngle: number;
       startRotation: number;
+    }
+  | {
+      type: "resize-page-height";
+      startCanvasY: number;
+      startHeight: number;
     };
 
 export interface CanvasPointerHandlers {
@@ -123,25 +128,46 @@ export function useCanvasPointer(
       const screenY = e.clientY - rect.top;
       const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
 
-      // 0. Check Text Node Double Click (timestamp-based) BEFORE setting pointer capture
+      // 0. Check Element Double Click BEFORE setting pointer capture
       const targetEl = target as HTMLElement;
       const closestNodeEl = targetEl.closest?.("[data-node-id]");
       const hitNodeId = closestNodeEl?.getAttribute("data-node-id") ?? target.getAttribute("data-node-id");
       const now = Date.now();
 
       if (hitNodeId && store.nodes[hitNodeId]) {
-        const hitNode = getEffectiveNode(store.nodes[hitNodeId], store.activeBreakpoint);
-        const isAlreadySelected = store.selectedNodeIds.has(hitNode.id) && store.selectedNodeIds.size === 1;
-        const isDoubleClick =
-          lastClickNodeIdRef.current === hitNode.id && now - lastClickTimeRef.current < 450;
+        const rawHitNode = store.nodes[hitNodeId];
+        const isLockedOrHidden = rawHitNode.locked === true || rawHitNode.visible === false;
 
-        lastClickTimeRef.current = now;
-        lastClickNodeIdRef.current = hitNode.id;
+        if (!isLockedOrHidden) {
+          const hitNode = getEffectiveNode(rawHitNode, store.activeBreakpoint);
+          const isDoubleClick =
+            e.detail === 2 || (lastClickNodeIdRef.current === hitNode.id && now - lastClickTimeRef.current < 450);
 
-        if (hitNode.type === "text" && (isDoubleClick || isAlreadySelected)) {
-          store.selectNode(hitNode.id);
-          store.setEditingNode(hitNode.id);
-          return; // DO NOT setPointerCapture on SVG!
+          lastClickTimeRef.current = now;
+          lastClickNodeIdRef.current = hitNode.id;
+
+          if (isDoubleClick) {
+            // Double-clicking ALWAYS selects the element and switches tool to "select" regardless of active tool!
+            let parentToSelect = hitNode;
+            while (parentToSelect.parentId && store.nodes[parentToSelect.parentId]) {
+              const parentGroup = getEffectiveNode(store.nodes[parentToSelect.parentId], store.activeBreakpoint);
+              if (store.selectedNodeIds.has(parentGroup.id)) break;
+              parentToSelect = parentGroup;
+            }
+
+            store.selectNode(parentToSelect.id, e.shiftKey);
+            store.setActiveTool("select");
+
+            if (hitNode.type === "text") {
+              store.setEditingNode(hitNode.id);
+            } else if (hitNode.type === "group" && hitNode.children && hitNode.children.length > 0) {
+              store.selectNode(hitNode.children[0]);
+            }
+
+            drawPreviewRef.current = null;
+            modeRef.current = { type: "idle" };
+            return;
+          }
         }
       } else {
         lastClickTimeRef.current = 0;
@@ -156,8 +182,18 @@ export function useCanvasPointer(
       // Set pointer capture for standard canvas drag operations
       svg.setPointerCapture(e.pointerId);
 
-      // 1. Check Line endpoint handles
       const handleAttr = target.getAttribute("data-handle");
+      if (handleAttr === "page-height") {
+        const currentHeight = store.pageHeight[store.activeBreakpoint] ?? 1200;
+        modeRef.current = {
+          type: "resize-page-height",
+          startCanvasY: canvasY,
+          startHeight: currentHeight,
+        };
+        return;
+      }
+
+      // 1. Check Line endpoint handles
       if (handleAttr === "line-start" || handleAttr === "line-end") {
         const selectedId = Array.from(store.selectedNodeIds)[0];
         if (selectedId && store.nodes[selectedId]?.type === "line") {
@@ -496,9 +532,18 @@ export function useCanvasPointer(
             e.altKey
           );
 
+          let finalX = snapRes.snappedX;
+          let finalY = snapRes.snappedY;
+
+          if (store.snapToGrid) {
+            const gSize = store.gridSize;
+            finalX = Math.round(finalX / gSize) * gSize;
+            finalY = Math.round(finalY / gSize) * gSize;
+          }
+
           store.updateNodeGeometry(mode.nodeId, {
-            x: snapRes.snappedX,
-            y: snapRes.snappedY,
+            x: finalX,
+            y: finalY,
           });
           store.setAlignmentGuides(snapRes.guides);
           break;
@@ -603,8 +648,18 @@ export function useCanvasPointer(
             DEG;
           const delta = angle - mode.startAngle;
           let newRotation = mode.startRotation + delta;
+          if (e.shiftKey) {
+            newRotation = Math.round(newRotation / 15) * 15;
+          }
           newRotation = ((newRotation % 360) + 360) % 360;
           store.updateNodeGeometry(mode.nodeId, { rotation: newRotation });
+          break;
+        }
+
+        case "resize-page-height": {
+          const dy = canvasY - mode.startCanvasY;
+          const newHeight = Math.max(400, mode.startHeight + dy);
+          store.setPageHeight(store.activeBreakpoint, newHeight);
           break;
         }
       }

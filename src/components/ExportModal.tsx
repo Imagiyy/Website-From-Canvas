@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useCanvasStore } from "../store/canvasStore";
-import { generateSiteCode } from "../utils/exportSite";
+import { generateMultiPageSiteCode } from "../utils/exportSite";
 import "./ExportModal.css";
 
 interface Props {
@@ -9,34 +9,43 @@ interface Props {
 }
 
 export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
+  const pages = useCanvasStore((s) => s.pages);
+  const activePageId = useCanvasStore((s) => s.activePageId);
   const nodes = useCanvasStore((s) => s.nodes);
-  const [activeTab, setActiveTab] = useState<"html" | "css">("html");
+
+  const [activeTab, setActiveTab] = useState<string>("index.html");
   const [copied, setCopied] = useState(false);
 
-  const { html, css } = useMemo(() => {
-    if (!isOpen) return { html: "", css: "" };
-    return generateSiteCode(nodes);
-  }, [nodes, isOpen]);
+  const { pageFiles, css } = useMemo(() => {
+    if (!isOpen) return { pageFiles: [], css: "" };
+    return generateMultiPageSiteCode(pages, activePageId, nodes);
+  }, [pages, activePageId, nodes, isOpen]);
 
   if (!isOpen) return null;
 
-  const currentCode = activeTab === "html" ? html : css;
+  const currentFile = activeTab === "style.css"
+    ? { filename: "style.css", content: css }
+    : pageFiles.find((f) => f.filename === activeTab) ?? { filename: pageFiles[0]?.filename ?? "index.html", content: pageFiles[0]?.html ?? "" };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(currentCode);
+    navigator.clipboard.writeText(currentFile.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    // Download index.html
-    const htmlBlob = new Blob([html], { type: "text/html" });
-    const htmlUrl = URL.createObjectURL(htmlBlob);
-    const aHtml = document.createElement("a");
-    aHtml.href = htmlUrl;
-    aHtml.download = "index.html";
-    aHtml.click();
-    URL.revokeObjectURL(htmlUrl);
+    // Download each page HTML file
+    pageFiles.forEach((file, idx) => {
+      setTimeout(() => {
+        const blob = new Blob([file.html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, idx * 150);
+    });
 
     // Download style.css
     setTimeout(() => {
@@ -47,7 +56,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
       aCss.download = "style.css";
       aCss.click();
       URL.revokeObjectURL(cssUrl);
-    }, 150);
+    }, pageFiles.length * 150);
   };
 
   return (
@@ -65,7 +74,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </svg>
             <div>
               <h2>Export Published Web App</h2>
-              <span>Clean HTML5 & CSS3 with responsive media query overrides</span>
+              <span>Clean multi-page HTML5 & CSS3 with responsive media query overrides</span>
             </div>
           </div>
           <button className="export-modal__close-btn" onClick={onClose}>
@@ -75,15 +84,18 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Tab Switcher */}
         <div className="export-modal__tabs">
+          {pageFiles.map((file) => (
+            <button
+              key={file.filename}
+              className={`export-modal__tab ${activeTab === file.filename ? "export-modal__tab--active" : ""}`}
+              onClick={() => setActiveTab(file.filename)}
+            >
+              <span>{file.filename}</span>
+            </button>
+          ))}
           <button
-            className={`export-modal__tab ${activeTab === "html" ? "export-modal__tab--active" : ""}`}
-            onClick={() => setActiveTab("html")}
-          >
-            <span>index.html</span>
-          </button>
-          <button
-            className={`export-modal__tab ${activeTab === "css" ? "export-modal__tab--active" : ""}`}
-            onClick={() => setActiveTab("css")}
+            className={`export-modal__tab ${activeTab === "style.css" ? "export-modal__tab--active" : ""}`}
+            onClick={() => setActiveTab("style.css")}
           >
             <span>style.css</span>
           </button>
@@ -92,7 +104,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Code Content Box */}
         <div className="export-modal__code-container">
           <pre className="export-modal__code">
-            <code>{currentCode}</code>
+            <code>{currentFile.content}</code>
           </pre>
         </div>
 
@@ -107,7 +119,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
                 <path d="M3 11H2.5A1.5 1.5 0 0 1 1 9.5V2.5A1.5 1.5 0 0 1 2.5 1H9.5A1.5 1.5 0 0 1 11 2.5V3" stroke="currentColor" strokeWidth="1.2" />
               </svg>
-              <span>Copy {activeTab.toUpperCase()}</span>
+              <span>Copy {currentFile.filename}</span>
             </button>
 
             <button className="export-modal__primary-btn" onClick={handleDownload}>
@@ -115,7 +127,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M2 13H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-              <span>Download Files (index.html & style.css)</span>
+              <span>Download All Files ({pageFiles.length} Pages + style.css)</span>
             </button>
           </div>
         </div>

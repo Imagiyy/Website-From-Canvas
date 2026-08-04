@@ -1,4 +1,8 @@
 import type { NodesById, CanvasNode, Style, Geometry } from "../types/canvas";
+import { getEffectiveNode } from "./breakpoint";
+import { getPolygonPoints } from "../components/nodes/PolygonNode";
+import { getStarPoints } from "../components/nodes/StarNode";
+import { getPolygonVertices } from "../components/nodes/Shape3DNode";
 
 export interface ExportedSiteCode {
   html: string;
@@ -35,7 +39,10 @@ function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>):
   }
 
   if (style) {
-    if (style.fill !== undefined) {
+    if (style.gradient) {
+      const g = style.gradient;
+      rules.push(`  background: linear-gradient(${g.angle ?? 135}deg, ${g.startColor}, ${g.endColor});`);
+    } else if (style.fill !== undefined) {
       rules.push(`  background-color: ${style.fill};`);
     }
     if (style.opacity !== undefined) {
@@ -60,13 +67,16 @@ function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>):
       if (t.color) rules.push(`  color: ${t.color};`);
       if (t.align) rules.push(`  text-align: ${t.align};`);
       if (t.lineHeight) rules.push(`  line-height: ${t.lineHeight};`);
+      if (t.letterSpacing) rules.push(`  letter-spacing: ${t.letterSpacing}px;`);
+      if (t.textTransform && t.textTransform !== "none") rules.push(`  text-transform: ${t.textTransform};`);
+      if (t.textDecoration && t.textDecoration !== "none") rules.push(`  text-decoration: ${t.textDecoration};`);
     }
   }
 
   return rules.join("\n");
 }
 
-/** Recursively renders HTML for a node */
+/** Recursively renders HTML for a node with pure SVG for vector & 3D shapes */
 function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "    "): string {
   const nid = safeId(node.id);
 
@@ -83,13 +93,18 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
       const img = node.content?.kind === "image" ? node.content : null;
       const fit = img?.fit ?? "cover";
       const src = img?.assetUrl ?? "";
-      return `${indent}<div id="node-${nid}" class="canvas-element img-node">\n${indent}  <img src="${src}" alt="${escapeHtml(node.name)}" style="object-fit: ${fit};" />\n${indent}</div>`;
+      const imageSrc =
+        src ||
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%232a2a4a'><rect width='100' height='100'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%238888a8' font-size='12'>Image</text></svg>";
+      return `${indent}<div id="node-${nid}" class="canvas-element img-node">\n${indent}  <img src="${imageSrc}" alt="${escapeHtml(node.name)}" style="object-fit: ${fit}; width: 100%; height: 100%; display: block;" />\n${indent}</div>`;
     }
 
     case "line": {
       const strokeColor = node.style.border?.color ?? "#2563EB";
       const strokeWidth = node.style.border?.width ?? 2;
-      return `${indent}<div id="node-${nid}" class="canvas-element line-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <line x1="0" y1="0" x2="${node.geometry.width}" y2="${node.geometry.height}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+      return `${indent}<div id="node-${nid}" class="canvas-element line-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">\n${indent}    <line x1="0" y1="0" x2="${w}" y2="${h}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
     }
 
     case "group": {
@@ -104,52 +119,134 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
 
     case "polygon": {
       const sides = node.style.sides ?? 5;
-      const pts: string[] = [];
-      const n = Math.max(3, Math.min(30, sides));
-      for (let i = 0; i < n; i++) {
-        const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-        const px = (50 + 50 * Math.cos(angle)).toFixed(1);
-        const py = (50 + 50 * Math.sin(angle)).toFixed(1);
-        pts.push(`${px}% ${py}%`);
-      }
-      return `${indent}<div id="node-${nid}" class="canvas-element polygon-node" style="clip-path: polygon(${pts.join(", ")});"></div>`;
+      const fill = node.style.fill ?? "#3B82F6";
+      const stroke = node.style.border?.color ?? "none";
+      const strokeWidth = node.style.border?.width ?? 0;
+      const strokeDash =
+        node.style.border?.style === "dashed"
+          ? 'stroke-dasharray="6,6"'
+          : node.style.border?.style === "dotted"
+          ? 'stroke-dasharray="2,2"'
+          : "";
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+      const pts = getPolygonPoints(w, h, sides);
+      const depth3d = node.style.depth3d ?? 0;
+      const color3d = node.style.color3d ?? "#1E40AF";
+
+      const shadow3d =
+        depth3d > 0
+          ? `\n${indent}    <polygon points="${pts}" transform="translate(${depth3d * 0.5}, ${depth3d * 0.5})" fill="${color3d}" opacity="0.8" />`
+          : "";
+      const mainPolygon = `<polygon points="${pts}" fill="${fill}" ${
+        stroke !== "none" ? `stroke="${stroke}" stroke-width="${strokeWidth}"` : ""
+      } ${strokeDash} />`;
+
+      return `${indent}<div id="node-${nid}" class="canvas-element polygon-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">${shadow3d}\n${indent}    ${mainPolygon}\n${indent}  </svg>\n${indent}</div>`;
     }
 
-    case "circle":
-      return `${indent}<div id="node-${nid}" class="canvas-element circle-node" style="border-radius: 50%;"></div>`;
+    case "circle": {
+      const fill = node.style.fill ?? "#10B981";
+      const stroke = node.style.border?.color ?? "none";
+      const strokeWidth = node.style.border?.width ?? 0;
+      const strokeDash =
+        node.style.border?.style === "dashed"
+          ? 'stroke-dasharray="6,6"'
+          : node.style.border?.style === "dotted"
+          ? 'stroke-dasharray="2,2"'
+          : "";
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+      const rx = w / 2;
+      const ry = h / 2;
+      const depth3d = node.style.depth3d ?? 0;
+      const color3d = node.style.color3d ?? "#065F46";
+
+      const shadow3d =
+        depth3d > 0
+          ? `\n${indent}    <ellipse cx="${rx + depth3d * 0.4}" cy="${ry + depth3d * 0.4}" rx="${rx}" ry="${ry}" fill="${color3d}" opacity="0.8" />`
+          : "";
+      const mainEllipse = `<ellipse cx="${rx}" cy="${ry}" rx="${rx}" ry="${ry}" fill="${fill}" ${
+        stroke !== "none" ? `stroke="${stroke}" stroke-width="${strokeWidth}"` : ""
+      } ${strokeDash} />`;
+
+      return `${indent}<div id="node-${nid}" class="canvas-element circle-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">${shadow3d}\n${indent}    ${mainEllipse}\n${indent}  </svg>\n${indent}</div>`;
+    }
 
     case "curve": {
       const curvature = node.style.curvature ?? 50;
       const strokeColor = node.style.border?.color ?? node.style.fill ?? "#EC4899";
       const strokeWidth = Math.max(2, node.style.border?.width ?? 4);
-      const w = Math.abs(node.geometry.width);
-      const h = Math.abs(node.geometry.height);
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
       const curveDepth = (curvature / 100) * (h / 2);
       const pathD = `M 0,${h / 2} C ${w * 0.25},${h / 2 - curveDepth} ${w * 0.75},${h / 2 + curveDepth} ${w},${h / 2}`;
-      return `${indent}<div id="node-${nid}" class="canvas-element curve-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
+      return `${indent}<div id="node-${nid}" class="canvas-element curve-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">\n${indent}    <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" />\n${indent}  </svg>\n${indent}</div>`;
     }
 
     case "star": {
       const pointsCount = node.style.starPoints ?? 5;
       const innerRatio = node.style.innerRadius ?? 0.5;
-      const pts: string[] = [];
-      const total = pointsCount * 2;
-      for (let i = 0; i < total; i++) {
-        const angle = (i * Math.PI) / pointsCount - Math.PI / 2;
-        const isOuter = i % 2 === 0;
-        const r = isOuter ? 50 : 50 * innerRatio;
-        const px = (50 + r * Math.cos(angle)).toFixed(1);
-        const py = (50 + r * Math.sin(angle)).toFixed(1);
-        pts.push(`${px}% ${py}%`);
-      }
-      return `${indent}<div id="node-${nid}" class="canvas-element star-node" style="clip-path: polygon(${pts.join(", ")});"></div>`;
+      const fill = node.style.fill ?? "#F59E0B";
+      const stroke = node.style.border?.color ?? "none";
+      const strokeWidth = node.style.border?.width ?? 0;
+      const strokeDash =
+        node.style.border?.style === "dashed"
+          ? 'stroke-dasharray="6,6"'
+          : node.style.border?.style === "dotted"
+          ? 'stroke-dasharray="2,2"'
+          : "";
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+      const pts = getStarPoints(w, h, pointsCount, innerRatio);
+      const depth3d = node.style.depth3d ?? 0;
+      const color3d = node.style.color3d ?? "#B45309";
+
+      const shadow3d =
+        depth3d > 0
+          ? `\n${indent}    <polygon points="${pts}" transform="translate(${depth3d * 0.4}, ${depth3d * 0.4})" fill="${color3d}" opacity="0.8" />`
+          : "";
+      const mainStar = `<polygon points="${pts}" fill="${fill}" ${
+        stroke !== "none" ? `stroke="${stroke}" stroke-width="${strokeWidth}"` : ""
+      } ${strokeDash} />`;
+
+      return `${indent}<div id="node-${nid}" class="canvas-element star-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">${shadow3d}\n${indent}    ${mainStar}\n${indent}  </svg>\n${indent}</div>`;
     }
 
     case "shape3d": {
-      const depth = node.style.depth3d ?? 30;
+      const sides = node.style.sides ?? 4;
       const mainColor = node.style.fill ?? "#8B5CF6";
+      const depth = node.style.depth3d ?? 30;
       const sideColor = node.style.color3d ?? "#6D28D9";
-      return `${indent}<div id="node-${nid}" class="canvas-element shape3d-node" style="box-shadow: ${depth * 0.4}px ${depth * 0.4}px 0px ${sideColor}; background: ${mainColor};"></div>`;
+      const stroke = node.style.border?.color ?? "none";
+      const strokeWidth = node.style.border?.width ?? 0;
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+
+      const dOffset = Math.max(8, depth * 0.35);
+      const faceW = Math.max(20, w - dOffset);
+      const faceH = Math.max(20, h - dOffset);
+
+      const vertices = getPolygonVertices(faceW, faceH, sides);
+      const topPolygonPoints = vertices.map((v) => `${v.x},${v.y}`).join(" ");
+
+      const n = vertices.length;
+      const sidePolygons = vertices
+        .map((vA, i) => {
+          const vB = vertices[(i + 1) % n];
+          const quadPoints = `${vA.x},${vA.y} ${vB.x},${vB.y} ${vB.x + dOffset},${vB.y + dOffset} ${vA.x + dOffset},${vA.y + dOffset}`;
+          const angle = (i * 2 * Math.PI) / n;
+          const shadeFactor = (0.5 + 0.4 * Math.sin(angle)).toFixed(2);
+          return `<polygon points="${quadPoints}" fill="${sideColor}" style="filter: brightness(${shadeFactor});" />`;
+        })
+        .join(`\n${indent}    `);
+
+      const backPolygon = `<polygon points="${topPolygonPoints}" transform="translate(${dOffset}, ${dOffset})" fill="${sideColor}" opacity="0.7" />`;
+      const frontPolygon = `<polygon points="${topPolygonPoints}" fill="${mainColor}" ${
+        stroke !== "none" ? `stroke="${stroke}" stroke-width="${strokeWidth}"` : ""
+      } />`;
+
+      return `${indent}<div id="node-${nid}" class="canvas-element shape3d-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">\n${indent}    ${sidePolygons}\n${indent}    ${backPolygon}\n${indent}    ${frontPolygon}\n${indent}  </svg>\n${indent}</div>`;
     }
 
     case "brush":
@@ -157,7 +254,18 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
       const strokeColor = node.style.border?.color ?? node.style.fill ?? "#3B82F6";
       const strokeWidth = node.style.brushSize ?? (node.type === "pencil" ? 2 : 12);
       const pathData = node.pathData ?? "";
-      return `${indent}<div id="node-${nid}" class="canvas-element path-node">\n${indent}  <svg width="100%" height="100%" overflow="visible">\n${indent}    <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" />\n${indent}  </svg>\n${indent}</div>`;
+      const depth3d = node.style.depth3d ?? 0;
+      const color3d = node.style.color3d ?? "#1E40AF";
+      const w = Math.max(1, Math.abs(node.geometry.width));
+      const h = Math.max(1, Math.abs(node.geometry.height));
+
+      const shadow3d =
+        depth3d > 0
+          ? `\n${indent}    <path d="${pathData}" transform="translate(${depth3d * 0.4}, ${depth3d * 0.4})" fill="none" stroke="${color3d}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />`
+          : "";
+      const mainPath = `<path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" />`;
+
+      return `${indent}<div id="node-${nid}" class="canvas-element path-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">${shadow3d}\n${indent}    ${mainPath}\n${indent}  </svg>\n${indent}</div>`;
     }
   }
 }
@@ -166,20 +274,51 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
  * Compiles a CanvasSite data model into standalone, production-ready HTML5 & CSS3 files
  * with media queries for tablet (768px) and mobile (375px) overrides.
  */
-export function generateSiteCode(nodes: NodesById): ExportedSiteCode {
-  const topLevelNodes = Object.values(nodes)
-    .filter((n) => n.parentId === null)
-    .sort((a, b) => a.order - b.order);
+export interface ExportedPageFile {
+  id: string;
+  name: string;
+  filename: string;
+  html: string;
+}
 
-  // 1. Generate HTML
-  const bodyHTML = topLevelNodes.map((n) => renderNodeHTML(n, nodes)).join("\n");
+export interface ExportedMultiPageSiteCode {
+  pageFiles: ExportedPageFile[];
+  css: string;
+}
 
-  const html = `<!DOCTYPE html>
+/**
+ * Compiles a multi-page CanvasSite project into standalone HTML files (e.g. index.html, about.html)
+ * and a combined style.css file with responsive media query overrides.
+ */
+export function generateMultiPageSiteCode(
+  pages: import("../types/canvas").PagesById,
+  activePageId: string,
+  currentNodes: NodesById
+): ExportedMultiPageSiteCode {
+  const allPagesMap = {
+    ...pages,
+    [activePageId]: {
+      ...pages[activePageId],
+      nodes: currentNodes,
+    },
+  };
+
+  const pageFiles: ExportedPageFile[] = [];
+  const allNodes: CanvasNode[] = [];
+
+  Object.values(allPagesMap).forEach((page) => {
+    const filename = `${page.slug || "page"}.html`;
+    const topLevel = Object.values(page.nodes)
+      .filter((n) => n.parentId === null)
+      .sort((a, b) => a.order - b.order);
+
+    const bodyHTML = topLevel.map((n) => renderNodeHTML(n, page.nodes)).join("\n");
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CanvasSite Published Web App</title>
+  <title>${escapeHtml(page.name)} — CanvasSite</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -192,10 +331,19 @@ ${bodyHTML}
 </body>
 </html>`;
 
-  // 2. Generate CSS
+    pageFiles.push({
+      id: page.id,
+      name: page.name,
+      filename,
+      html,
+    });
+
+    Object.values(page.nodes).forEach((n) => allNodes.push(n));
+  });
+
   const cssRules: string[] = [];
 
-  cssRules.push(`/* CanvasSite Exported Stylesheet */
+  cssRules.push(`/* CanvasSite Exported Stylesheet — Multi-Page Site */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -221,6 +369,13 @@ body {
   box-sizing: border-box;
 }
 
+.canvas-element svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .text-node p {
   white-space: pre-wrap;
   word-break: break-word;
@@ -235,46 +390,39 @@ body {
 }
 `);
 
-  // Base Desktop Styles
   cssRules.push(`/* Base Desktop Styles */`);
-  Object.values(nodes).forEach((node) => {
+  allNodes.forEach((node) => {
     const nid = safeId(node.id);
     const rules = generateNodeCSSRules(node.geometry, node.style);
     cssRules.push(`#node-${nid} {\n  z-index: ${node.order};\n${rules}\n}`);
   });
 
-  // Tablet Overrides Media Query (@media (max-width: 768px))
   const tabletRules: string[] = [];
-  Object.values(nodes).forEach((node) => {
-    const override = node.breakpoints?.tablet;
-    if (override && (override.geometry || override.style)) {
-      const nid = safeId(node.id);
-      const rules = generateNodeCSSRules(override.geometry, override.style);
-      tabletRules.push(`#node-${nid} {\n${rules}\n}`);
-    }
+  allNodes.forEach((node) => {
+    const effectiveTablet = getEffectiveNode(node, "tablet");
+    const nid = safeId(node.id);
+    const rules = generateNodeCSSRules(effectiveTablet.geometry, effectiveTablet.style);
+    tabletRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 
   if (tabletRules.length > 0) {
-    cssRules.push(`\n/* Tablet Overrides (768px) */\n@media (max-width: 768px) {\n${tabletRules.join("\n\n")}\n}`);
+    cssRules.push(`/* Tablet Responsive View (768px) */\n@media (max-width: 768px) {\n${tabletRules.join("\n\n")}\n}`);
   }
 
-  // Mobile Overrides Media Query (@media (max-width: 375px))
   const mobileRules: string[] = [];
-  Object.values(nodes).forEach((node) => {
-    const override = node.breakpoints?.mobile;
-    if (override && (override.geometry || override.style)) {
-      const nid = safeId(node.id);
-      const rules = generateNodeCSSRules(override.geometry, override.style);
-      mobileRules.push(`#node-${nid} {\n${rules}\n}`);
-    }
+  allNodes.forEach((node) => {
+    const effectiveMobile = getEffectiveNode(node, "mobile");
+    const nid = safeId(node.id);
+    const rules = generateNodeCSSRules(effectiveMobile.geometry, effectiveMobile.style);
+    mobileRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 
   if (mobileRules.length > 0) {
-    cssRules.push(`\n/* Mobile Overrides (375px) */\n@media (max-width: 375px) {\n${mobileRules.join("\n\n")}\n}`);
+    cssRules.push(`/* Mobile Responsive View (375px) */\n@media (max-width: 375px) {\n${mobileRules.join("\n\n")}\n}`);
   }
 
   return {
-    html,
+    pageFiles,
     css: cssRules.join("\n\n"),
   };
 }

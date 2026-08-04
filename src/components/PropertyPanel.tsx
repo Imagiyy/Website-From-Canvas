@@ -1,8 +1,87 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import type { CanvasNode, TypographyStyle, Style, ShadowStyle } from "../types/canvas";
 import { useCanvasStore } from "../store/canvasStore";
 import { getEffectiveNode } from "../utils/breakpoint";
 import "./PropertyPanel.css";
+
+const DebouncedNumInput: React.FC<{
+  value: number;
+  onChange: (val: number) => void;
+  className?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+}> = ({ value, onChange, className, min, max, step, placeholder }) => {
+  const [localVal, setLocalVal] = useState(String(value));
+
+  useEffect(() => {
+    setLocalVal(String(value));
+  }, [value]);
+
+  const flush = () => {
+    const num = Number(localVal);
+    if (!isNaN(num) && num !== value) {
+      onChange(num);
+    } else {
+      setLocalVal(String(value));
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      className={className}
+      min={min}
+      max={max}
+      step={step}
+      placeholder={placeholder}
+      value={localVal}
+      onChange={(e) => setLocalVal(e.target.value)}
+      onBlur={flush}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          flush();
+        }
+      }}
+    />
+  );
+};
+
+const DebouncedTextInput: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  placeholder?: string;
+}> = ({ value, onChange, className, placeholder }) => {
+  const [localVal, setLocalVal] = useState(value);
+
+  useEffect(() => {
+    setLocalVal(value);
+  }, [value]);
+
+  const flush = () => {
+    if (localVal !== value) {
+      onChange(localVal);
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      className={className}
+      placeholder={placeholder}
+      value={localVal}
+      onChange={(e) => setLocalVal(e.target.value)}
+      onBlur={flush}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          flush();
+        }
+      }}
+    />
+  );
+};
 
 const QUICK_SWATCHES = [
   { name: "Transparent", value: "transparent" },
@@ -269,11 +348,10 @@ export const PropertyPanel: React.FC = () => {
     <div className="property-panel">
       {/* Header */}
       <div className="property-panel__header">
-        <input
-          type="text"
+        <DebouncedTextInput
           className="property-panel__name-input"
           value={node.name}
-          onChange={handleNameChange}
+          onChange={(val) => updateNodeName(node.id, val)}
         />
         <div className="property-panel__badges">
           {activeBreakpoint !== "desktop" && (
@@ -292,52 +370,77 @@ export const PropertyPanel: React.FC = () => {
           <div className="property-panel__grid">
             <div className="property-panel__field">
               <label>X</label>
-              <input
-                type="number"
+              <DebouncedNumInput
                 value={Math.round(geometry.x)}
-                onChange={(e) => handleGeomChange("x", Number(e.target.value))}
+                onChange={(val) => handleGeomChange("x", val)}
               />
             </div>
             <div className="property-panel__field">
               <label>Y</label>
-              <input
-                type="number"
+              <DebouncedNumInput
                 value={Math.round(geometry.y)}
-                onChange={(e) => handleGeomChange("y", Number(e.target.value))}
+                onChange={(val) => handleGeomChange("y", val)}
               />
             </div>
             <div className="property-panel__field">
               <label>W</label>
-              <input
-                type="number"
+              <DebouncedNumInput
                 value={Math.round(geometry.width)}
-                onChange={(e) => handleGeomChange("width", Number(e.target.value))}
+                onChange={(val) => handleGeomChange("width", val)}
               />
             </div>
             <div className="property-panel__field">
               <label>H</label>
-              <input
-                type="number"
+              <DebouncedNumInput
                 value={Math.round(geometry.height)}
-                onChange={(e) => handleGeomChange("height", Number(e.target.value))}
+                onChange={(val) => handleGeomChange("height", val)}
               />
             </div>
             <div className="property-panel__field property-panel__field--full">
               <label>Rotation (°)</label>
-              <input
-                type="number"
+              <DebouncedNumInput
                 value={Math.round(geometry.rotation)}
-                onChange={(e) => handleGeomChange("rotation", Number(e.target.value))}
+                onChange={(val) => handleGeomChange("rotation", val)}
               />
             </div>
           </div>
         </div>
 
         {/* Fill & Appearance */}
+        {/* Fill & Appearance */}
         {node.type !== "line" && node.type !== "group" && (
           <div className="property-panel__section">
             <span className="property-panel__section-title">Fill & Appearance</span>
-            {node.type === "rectangle" && (
+            
+            {/* Fill Mode Switcher (Solid vs Gradient) */}
+            <div className="property-panel__row">
+              <label>Fill Mode</label>
+              <div className="property-panel__btn-group">
+                <button
+                  className={`property-panel__toggle-btn ${!style.gradient ? "property-panel__toggle-btn--active" : ""}`}
+                  onClick={() => updateNodeStyle(node.id, { gradient: undefined })}
+                >
+                  Solid
+                </button>
+                <button
+                  className={`property-panel__toggle-btn ${style.gradient ? "property-panel__toggle-btn--active" : ""}`}
+                  onClick={() =>
+                    updateNodeStyle(node.id, {
+                      gradient: style.gradient ?? {
+                        type: "linear",
+                        startColor: style.fill && style.fill !== "transparent" ? style.fill : "#3B82F6",
+                        endColor: "#9333EA",
+                        angle: 135,
+                      },
+                    })
+                  }
+                >
+                  Gradient
+                </button>
+              </div>
+            </div>
+
+            {!style.gradient ? (
               <>
                 <div className="property-panel__row">
                   <label>Fill Color</label>
@@ -370,6 +473,110 @@ export const PropertyPanel: React.FC = () => {
                       }}
                       title={swatch.name}
                       onClick={() => handleFillChange(swatch.value)}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Gradient Start Color */}
+                <div className="property-panel__row">
+                  <label>Start Color</label>
+                  <div className="property-panel__color-wrapper">
+                    <input
+                      type="color"
+                      value={style.gradient.startColor}
+                      onChange={(e) =>
+                        updateNodeStyle(node.id, {
+                          gradient: { ...style.gradient!, startColor: e.target.value },
+                        })
+                      }
+                    />
+                    <input
+                      type="text"
+                      className="property-panel__hex-input"
+                      value={style.gradient.startColor}
+                      onChange={(e) =>
+                        updateNodeStyle(node.id, {
+                          gradient: { ...style.gradient!, startColor: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Gradient End Color */}
+                <div className="property-panel__row">
+                  <label>End Color</label>
+                  <div className="property-panel__color-wrapper">
+                    <input
+                      type="color"
+                      value={style.gradient.endColor}
+                      onChange={(e) =>
+                        updateNodeStyle(node.id, {
+                          gradient: { ...style.gradient!, endColor: e.target.value },
+                        })
+                      }
+                    />
+                    <input
+                      type="text"
+                      className="property-panel__hex-input"
+                      value={style.gradient.endColor}
+                      onChange={(e) =>
+                        updateNodeStyle(node.id, {
+                          gradient: { ...style.gradient!, endColor: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Gradient Angle Slider */}
+                <div className="property-panel__row">
+                  <label>Angle (°)</label>
+                  <div className="property-panel__range-wrapper">
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      value={style.gradient.angle ?? 135}
+                      onChange={(e) =>
+                        updateNodeStyle(node.id, {
+                          gradient: { ...style.gradient!, angle: Number(e.target.value) },
+                        })
+                      }
+                    />
+                    <span>{style.gradient.angle ?? 135}°</span>
+                  </div>
+                </div>
+
+                {/* Gradient Presets */}
+                <div className="property-panel__swatches">
+                  {[
+                    { name: "Sunset", start: "#F59E0B", end: "#EF4444", angle: 135 },
+                    { name: "Ocean", start: "#06B6D4", end: "#3B82F6", angle: 135 },
+                    { name: "Cyberpunk", start: "#EC4899", end: "#8B5CF6", angle: 135 },
+                    { name: "Emerald", start: "#10B981", end: "#06B6D4", angle: 135 },
+                    { name: "Neon Fire", start: "#F97316", end: "#EC4899", angle: 135 },
+                    { name: "Midnight", start: "#6366F1", end: "#1E1B4B", angle: 180 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      className="property-panel__swatch"
+                      style={{
+                        background: `linear-gradient(${preset.angle}deg, ${preset.start}, ${preset.end})`,
+                      }}
+                      title={preset.name}
+                      onClick={() =>
+                        updateNodeStyle(node.id, {
+                          gradient: {
+                            type: "linear",
+                            startColor: preset.start,
+                            endColor: preset.end,
+                            angle: preset.angle,
+                          },
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -535,6 +742,7 @@ export const PropertyPanel: React.FC = () => {
           <div className="property-panel__section">
             <span className="property-panel__section-title">Typography</span>
 
+            {/* Google Fonts Picker */}
             <div className="property-panel__row">
               <label>Font Family</label>
               <select
@@ -542,11 +750,16 @@ export const PropertyPanel: React.FC = () => {
                 value={style.typography?.fontFamily ?? "Inter, sans-serif"}
                 onChange={(e) => handleTypoChange({ fontFamily: e.target.value })}
               >
-                <option value="Inter, sans-serif">Inter</option>
-                <option value="Roboto, sans-serif">Roboto</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Courier New, monospace">Courier New</option>
+                <option value="Inter, sans-serif">Inter (Sans-Serif)</option>
+                <option value="Roboto, sans-serif">Roboto (Sans-Serif)</option>
+                <option value="'Playfair Display', serif">Playfair Display (Serif)</option>
+                <option value="Outfit, sans-serif">Outfit (Modern)</option>
+                <option value="Montserrat, sans-serif">Montserrat (Geometric)</option>
+                <option value="Poppins, sans-serif">Poppins (Sans-Serif)</option>
+                <option value="Lora, serif">Lora (Serif)</option>
+                <option value="Oswald, sans-serif">Oswald (Condensed)</option>
+                <option value="'Fira Code', monospace">Fira Code (Monospace)</option>
+                <option value="Caveat, cursive">Caveat (Handwriting)</option>
               </select>
             </div>
 
@@ -569,10 +782,13 @@ export const PropertyPanel: React.FC = () => {
                 value={style.typography?.fontWeight ?? 400}
                 onChange={(e) => handleTypoChange({ fontWeight: Number(e.target.value) })}
               >
+                <option value={100}>Thin (100)</option>
+                <option value={300}>Light (300)</option>
                 <option value={400}>Regular (400)</option>
                 <option value={500}>Medium (500)</option>
                 <option value={600}>Semi-Bold (600)</option>
                 <option value={700}>Bold (700)</option>
+                <option value={900}>Black (900)</option>
               </select>
             </div>
 
@@ -605,6 +821,69 @@ export const PropertyPanel: React.FC = () => {
                     onClick={() => handleTypoChange({ align })}
                   >
                     {align.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Letter Spacing (Tracking) */}
+            <div className="property-panel__row">
+              <label>Spacing (px)</label>
+              <input
+                type="number"
+                min="-5"
+                max="30"
+                className="property-panel__num-input"
+                value={style.typography?.letterSpacing ?? 0}
+                onChange={(e) => handleTypoChange({ letterSpacing: Number(e.target.value) })}
+              />
+            </div>
+
+            {/* Text Transform */}
+            <div className="property-panel__row">
+              <label>Transform</label>
+              <div className="property-panel__btn-group">
+                {(
+                  [
+                    { label: "None", val: "none" },
+                    { label: "TT", val: "uppercase" },
+                    { label: "tt", val: "lowercase" },
+                    { label: "Tt", val: "capitalize" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.val}
+                    className={`property-panel__icon-btn ${
+                      (style.typography?.textTransform ?? "none") === t.val ? "property-panel__icon-btn--active" : ""
+                    }`}
+                    onClick={() => handleTypoChange({ textTransform: t.val })}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Text Decoration */}
+            <div className="property-panel__row">
+              <label>Decoration</label>
+              <div className="property-panel__btn-group">
+                {(
+                  [
+                    { label: "None", val: "none" },
+                    { label: "U", val: "underline" },
+                    { label: "S", val: "line-through" },
+                  ] as const
+                ).map((d) => (
+                  <button
+                    key={d.val}
+                    className={`property-panel__icon-btn ${
+                      (style.typography?.textDecoration ?? "none") === d.val ? "property-panel__icon-btn--active" : ""
+                    }`}
+                    style={d.val === "underline" ? { textDecoration: "underline" } : d.val === "line-through" ? { textDecoration: "line-through" } : undefined}
+                    onClick={() => handleTypoChange({ textDecoration: d.val })}
+                  >
+                    {d.label}
                   </button>
                 ))}
               </div>

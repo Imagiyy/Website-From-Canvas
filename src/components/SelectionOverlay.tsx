@@ -143,17 +143,36 @@ export const SelectionOverlay: React.FC<Props> = React.memo(({ selectedNodeIds, 
           pointerEvents="none"
         />
 
-        {/* Rotate handle */}
-        <circle
+        {/* Rotate handle group with curved arrow icon */}
+        <g
           data-handle="rotate"
-          cx={x + width / 2}
-          cy={y - rotateOffset}
-          r={half}
-          fill="white"
-          stroke="#2563EB"
-          strokeWidth={handleStrokeWidth}
+          transform={`translate(${x + width / 2}, ${y - rotateOffset})`}
           style={{ cursor: "grab" }}
-        />
+        >
+          <circle
+            r={half * 1.3}
+            fill="white"
+            stroke="#2563EB"
+            strokeWidth={handleStrokeWidth}
+          />
+          <path
+            d={`M ${-3 / zoom} ${-1 / zoom} A ${3.5 / zoom} ${3.5 / zoom} 0 1 1 ${3 / zoom} ${1 / zoom}`}
+            fill="none"
+            stroke="#2563EB"
+            strokeWidth={1.2 / zoom}
+            strokeLinecap="round"
+            pointerEvents="none"
+          />
+          <polyline
+            points={`${1 / zoom},${-2 / zoom} ${3 / zoom},${1 / zoom} ${4.5 / zoom},${-1 / zoom}`}
+            fill="none"
+            stroke="#2563EB"
+            strokeWidth={1.2 / zoom}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pointerEvents="none"
+          />
+        </g>
 
         {/* Resize handles */}
         {handles.map(({ id, hx, hy }) => (

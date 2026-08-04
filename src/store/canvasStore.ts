@@ -27,15 +27,26 @@ interface Snapshot {
 // Store shape
 // ---------------------------------------------------------------------------
 interface CanvasStoreState {
+  // ---- Multi-Page State ----
+  pages: import("../types/canvas").PagesById;
+  activePageId: string;
+
   // ---- Undoable state ----
   nodes: NodesById;
   selectedNodeIds: Set<NodeId>;
   nextNumber: Record<ElementType, number>;
 
+  // ---- Grid & Ruler State ----
+  showGrid: boolean;
+  gridSize: number;
+  snapToGrid: boolean;
+  showRulers: boolean;
+
   // ---- Non-undoable state ----
   viewport: Viewport;
   activeTool: ActiveTool;
   activeBreakpoint: import("../types/canvas").BreakpointKey;
+  pageHeight: Record<import("../types/canvas").BreakpointKey, number>;
   clipboard: CanvasNode[] | null; // Array of nodes (to support copying groups or multi-selections)
   editingNodeId: NodeId | null; // Text node currently being edited inline
   alignmentGuides: AlignmentGuide[];
@@ -48,8 +59,22 @@ interface CanvasStoreState {
 }
 
 interface CanvasStoreActions {
-  // Breakpoint Switcher
+  // Grid & Ruler Actions
+  toggleShowGrid: () => void;
+  setGridSize: (size: number) => void;
+  toggleSnapToGrid: () => void;
+  toggleShowRulers: () => void;
+
+  // Multi-Page Actions
+  // Multi-Page Actions
+  addPage: (name?: string) => void;
+  deletePage: (pageId: string) => void;
+  renamePage: (pageId: string, name: string) => void;
+  setActivePage: (pageId: string) => void;
+
+  // Breakpoint Switcher & Page Height
   setActiveBreakpoint: (bp: import("../types/canvas").BreakpointKey) => void;
+  setPageHeight: (bp: import("../types/canvas").BreakpointKey, height: number) => void;
 
   // Image Upload Trigger
   setImageUploadHandler: (fn: (() => void) | null) => void;
@@ -82,7 +107,8 @@ interface CanvasStoreActions {
   selectMultipleNodes: (ids: NodeId[]) => void;
   setEditingNode: (id: NodeId | null) => void;
 
-  // Z-order
+  // Z-order & Drag Reordering
+  reorderNodes: (draggedId: NodeId, targetId: NodeId, position: "before" | "after" | "inside") => void;
   bringToFront: () => void;
   sendToBack: () => void;
   moveForward: () => void;
@@ -248,25 +274,55 @@ let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function saveToLocalStorage(state: CanvasStoreState) {
   try {
+    const currentPages = {
+      ...state.pages,
+      [state.activePageId]: {
+        ...state.pages[state.activePageId],
+        nodes: state.nodes,
+      },
+    };
     const data = {
+      pages: currentPages,
+      activePageId: state.activePageId,
       nodes: state.nodes,
       nextNumber: state.nextNumber,
       activeColor: state.activeColor,
+      pageHeight: state.pageHeight,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch { /* storage full — silently fail */ }
 }
 
-function loadFromLocalStorage(): Partial<CanvasStoreState> | null {
+function loadFromLocalStorage(): {
+  pages: import("../types/canvas").PagesById;
+  activePageId: string;
+  nodes: NodesById;
+  nextNumber: Record<ElementType, number>;
+  activeColor: string;
+  pageHeight: Record<import("../types/canvas").BreakpointKey, number>;
+} | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (data && typeof data.nodes === "object") {
+      const defaultNodes = data.nodes as NodesById;
+      const defaultPages: import("../types/canvas").PagesById = data.pages ?? {
+        "page-1": {
+          id: "page-1",
+          name: "Home",
+          slug: "index",
+          nodes: defaultNodes,
+        },
+      };
+      const activeId = data.activePageId && defaultPages[data.activePageId] ? data.activePageId : "page-1";
       return {
-        nodes: data.nodes as NodesById,
+        pages: defaultPages,
+        activePageId: activeId,
+        nodes: defaultPages[activeId]?.nodes ?? defaultNodes,
         nextNumber: data.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
         activeColor: data.activeColor ?? "#3B82F6",
+        pageHeight: data.pageHeight ?? { desktop: 1200, tablet: 1400, mobile: 1600 },
       };
     }
   } catch { /* corrupt data — ignore */ }
@@ -280,17 +336,35 @@ function scheduleAutoSave(state: CanvasStoreState) {
 
 const savedState = loadFromLocalStorage();
 
+const initialPages: import("../types/canvas").PagesById = savedState?.pages ?? {
+  "page-1": {
+    id: "page-1",
+    name: "Home",
+    slug: "index",
+    nodes: savedState?.nodes ?? {},
+  },
+};
+
+const initialActivePageId = savedState?.activePageId ?? "page-1";
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // ---- Initial state (loaded from localStorage if available) ----
-  nodes: savedState?.nodes ?? {},
+  pages: initialPages,
+  activePageId: initialActivePageId,
+  nodes: initialPages[initialActivePageId]?.nodes ?? savedState?.nodes ?? {},
   selectedNodeIds: new Set(),
   nextNumber: savedState?.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
+  showGrid: true,
+  gridSize: 10,
+  snapToGrid: true,
+  showRulers: true,
   viewport: { panX: 0, panY: 0, zoom: 1 },
   activeTool: "select",
   activeBreakpoint: "desktop",
+  pageHeight: savedState?.pageHeight ?? { desktop: 1200, tablet: 1400, mobile: 1600 },
   clipboard: null,
   editingNodeId: null,
   alignmentGuides: [],
@@ -303,10 +377,135 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   future: [],
 
   // -----------------------------------------------------------------------
+  // Grid & Ruler Actions
+  // -----------------------------------------------------------------------
+  toggleShowGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+  setGridSize: (size) => set({ gridSize: Math.max(5, Math.min(100, size)) }),
+  toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+  toggleShowRulers: () => set((s) => ({ showRulers: !s.showRulers })),
+
+  // -----------------------------------------------------------------------
+  // Multi-Page Actions
+  // -----------------------------------------------------------------------
+  addPage: (name) => {
+    const state = get();
+    const pageCount = Object.keys(state.pages).length + 1;
+    const pageName = name ?? `Page ${pageCount}`;
+    const slug = pageName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+    const newPageId = `page-${Date.now()}`;
+
+    const updatedPages = {
+      ...state.pages,
+      [state.activePageId]: {
+        ...state.pages[state.activePageId],
+        nodes: state.nodes,
+      },
+      [newPageId]: {
+        id: newPageId,
+        name: pageName,
+        slug: slug || `page-${pageCount}`,
+        nodes: {},
+      },
+    };
+
+    set({
+      pages: updatedPages,
+      activePageId: newPageId,
+      nodes: {},
+      selectedNodeIds: new Set(),
+      editingNodeId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  deletePage: (pageId) => {
+    const state = get();
+    if (Object.keys(state.pages).length <= 1) return;
+
+    const updatedPages = { ...state.pages };
+    delete updatedPages[pageId];
+
+    let nextActiveId = state.activePageId;
+    let nextNodes = state.nodes;
+
+    if (state.activePageId === pageId) {
+      const remainingIds = Object.keys(updatedPages);
+      nextActiveId = remainingIds[0];
+      nextNodes = updatedPages[nextActiveId].nodes;
+    }
+
+    set({
+      pages: updatedPages,
+      activePageId: nextActiveId,
+      nodes: nextNodes,
+      selectedNodeIds: new Set(),
+      editingNodeId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  renamePage: (pageId, name) => {
+    const state = get();
+    const page = state.pages[pageId];
+    if (!page || !name.trim()) return;
+
+    const trimmed = name.trim();
+    const slug = pageId === "page-1" ? "index" : trimmed.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+
+    const updatedPages = {
+      ...state.pages,
+      [pageId]: {
+        ...page,
+        name: trimmed,
+        slug: slug || page.slug,
+      },
+    };
+
+    set({ pages: updatedPages });
+  },
+
+  setActivePage: (pageId) => {
+    const state = get();
+    if (pageId === state.activePageId || !state.pages[pageId]) return;
+
+    const updatedPages = {
+      ...state.pages,
+      [state.activePageId]: {
+        ...state.pages[state.activePageId],
+        nodes: state.nodes,
+      },
+    };
+
+    const newNodes = updatedPages[pageId].nodes ?? {};
+
+    set({
+      pages: updatedPages,
+      activePageId: pageId,
+      nodes: newNodes,
+      selectedNodeIds: new Set(),
+      editingNodeId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  // -----------------------------------------------------------------------
   // Breakpoints & Image Upload
   // -----------------------------------------------------------------------
   setActiveBreakpoint: (bp) => {
     set({ activeBreakpoint: bp, editingNodeId: null });
+  },
+
+  setPageHeight: (bp, height) => {
+    const state = get();
+    set({
+      pageHeight: {
+        ...state.pageHeight,
+        [bp]: Math.max(400, height),
+      },
+    });
   },
 
   setImageUploadHandler: (fn) => {
@@ -886,8 +1085,85 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   // -----------------------------------------------------------------------
-  // Z-order
+  // Z-order & Drag Reordering
   // -----------------------------------------------------------------------
+  reorderNodes: (draggedId, targetId, position) => {
+    const state = get();
+    if (draggedId === targetId) return;
+
+    const dragged = state.nodes[draggedId];
+    const target = state.nodes[targetId];
+    if (!dragged || !target) return;
+
+    // Prevent dragging a parent into its own descendant
+    let checkParent: CanvasNode | undefined = target;
+    while (checkParent) {
+      if (checkParent.id === draggedId) return;
+      checkParent = checkParent.parentId ? state.nodes[checkParent.parentId] : undefined;
+    }
+
+    const snap = snapshot(state);
+    const newNodes = structuredClone(state.nodes);
+
+    const oldParentId = dragged.parentId;
+
+    // Remove dragged from old parent's children array if applicable
+    if (oldParentId && newNodes[oldParentId]?.children) {
+      newNodes[oldParentId].children = newNodes[oldParentId].children!.filter((id) => id !== draggedId);
+    }
+
+    if (position === "inside" && target.type === "group") {
+      newNodes[draggedId].parentId = targetId;
+      if (!newNodes[targetId].children) {
+        newNodes[targetId].children = [];
+      }
+      if (!newNodes[targetId].children!.includes(draggedId)) {
+        newNodes[targetId].children!.push(draggedId);
+      }
+      const groupSiblings = Object.values(newNodes).filter((n) => n.parentId === targetId);
+      const maxOrd = groupSiblings.length > 0 ? Math.max(...groupSiblings.map((n) => n.order)) : -1;
+      newNodes[draggedId].order = maxOrd + 1;
+    } else {
+      const newParentId = target.parentId;
+      newNodes[draggedId].parentId = newParentId;
+
+      if (newParentId && newNodes[newParentId]) {
+        if (!newNodes[newParentId].children) newNodes[newParentId].children = [];
+        if (!newNodes[newParentId].children!.includes(draggedId)) {
+          newNodes[newParentId].children!.push(draggedId);
+        }
+      }
+
+      const siblings = Object.values(newNodes)
+        .filter((n) => n.parentId === newParentId && n.id !== draggedId)
+        .sort((a, b) => a.order - b.order);
+
+      const targetIdx = siblings.findIndex((n) => n.id === targetId);
+
+      if (targetIdx !== -1) {
+        const insertIdx = position === "before" ? targetIdx + 1 : targetIdx;
+        siblings.splice(insertIdx, 0, newNodes[draggedId]);
+      } else {
+        siblings.push(newNodes[draggedId]);
+      }
+
+      siblings.forEach((n, idx) => {
+        newNodes[n.id].order = idx;
+      });
+    }
+
+    normalizeOrders(newNodes, oldParentId);
+    if (oldParentId !== newNodes[draggedId].parentId) {
+      normalizeOrders(newNodes, newNodes[draggedId].parentId);
+    }
+
+    set({
+      nodes: newNodes,
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
   bringToFront: () => {
     const state = get();
     if (state.selectedNodeIds.size !== 1) return;
