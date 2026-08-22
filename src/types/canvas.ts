@@ -95,6 +95,7 @@ export interface LayoutConstraints {
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   wrap?: boolean;
+  pinX?: "none" | "left" | "right" | "both" | "center";
   pinLeft?: boolean;
   pinRight?: boolean;
   pinTop?: boolean;

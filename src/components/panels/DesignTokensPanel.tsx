@@ -10,7 +10,6 @@ const DesignTokensPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const colorTokens = useDesignTokenStore((s) => s.colorTokens);
   const textStyleTokens = useDesignTokenStore((s) => s.textStyleTokens);
   const addColorToken = useDesignTokenStore((s) => s.addColorToken);
-  const updateColorToken = useDesignTokenStore((s) => s.updateColorToken);
   const deleteColorToken = useDesignTokenStore((s) => s.deleteColorToken);
   const addTextStyle = useDesignTokenStore((s) => s.addTextStyle);
   const deleteTextStyle = useDesignTokenStore((s) => s.deleteTextStyle);

@@ -4,10 +4,12 @@ import { useSEOStore } from "../../store/seoStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import "../panels/PanelStyles.css";
 
+const DEFAULT_SEO = { title: "", description: "", ogTitle: "", ogDescription: "", ogImage: "", robots: "index, follow" };
+
 const SEOPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const activePageId = useCanvasStore((s) => s.activePageId);
   const pages = useCanvasStore((s) => s.pages);
-  const pageSEO = useSEOStore((s) => s.getPageSEO(activePageId));
+  const pageSEO = useSEOStore((s) => s.pageSEO[activePageId]) || DEFAULT_SEO;
   const updatePageSEO = useSEOStore((s) => s.updatePageSEO);
   const globalAnalyticsId = useSEOStore((s) => s.globalAnalyticsId);
   const setGlobalAnalyticsId = useSEOStore((s) => s.setGlobalAnalyticsId);

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useCanvasStore } from "../store/canvasStore";
+import { useComponentStore } from "../store/componentStore";
+import { booleanUnion, booleanSubtract, booleanIntersect, booleanExclude } from "../utils/booleanOps";
 import "./ContextMenu.css";
 
 export interface ContextMenuProps {
@@ -31,6 +33,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
   const selectAll = useCanvasStore((s) => s.selectAll);
   const resetView = useCanvasStore((s) => s.resetView);
   const selectNode = useCanvasStore((s) => s.selectNode);
+  const addNode = useCanvasStore((s) => s.addNode);
 
   // Close on outside click, window resize, or Escape key
   useEffect(() => {
@@ -60,8 +63,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
   }, [onClose]);
 
   // Adjust menu position so it doesn't overflow screen bounds
-  const menuWidth = 200;
-  const menuHeight = 320;
+  const menuWidth = 220;
+  const menuHeight = 420;
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
 
@@ -75,9 +78,43 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
   const isHidden = targetNode?.visible === false;
   const canGroup = selectedNodeIds.size >= 2;
   const canUngroup = Array.from(selectedNodeIds).some((id) => nodes[id]?.type === "group");
+  const canBoolean = selectedNodeIds.size === 2;
 
   const runAction = (fn: () => void) => {
     fn();
+    onClose();
+  };
+
+  const handleBooleanOp = (op: "union" | "subtract" | "intersect" | "exclude") => {
+    if (!canBoolean) return;
+    const selected = Array.from(selectedNodeIds).map((id) => nodes[id]);
+    const [nodeA, nodeB] = selected;
+    if (!nodeA || !nodeB) return;
+
+    let res;
+    if (op === "union") res = booleanUnion(nodeA, nodeB);
+    else if (op === "subtract") res = booleanSubtract(nodeA, nodeB);
+    else if (op === "intersect") res = booleanIntersect(nodeA, nodeB);
+    else res = booleanExclude(nodeA, nodeB);
+
+    deleteSelected();
+    addNode({
+      id: crypto.randomUUID(),
+      parentId: null,
+      order: 0,
+      type: "curve",
+      name: `Boolean ${op}`,
+      geometry: res.geometry,
+      style: { ...nodeA.style },
+      pathData: res.pathData,
+    });
+    onClose();
+  };
+
+  const handleCreateComponent = () => {
+    const node = targetNode || (selectedNodeIds.size > 0 ? nodes[Array.from(selectedNodeIds)[0]] : null);
+    if (!node) return;
+    useComponentStore.getState().createComponent(node.name || "Component", node, nodes);
     onClose();
   };
 
@@ -143,6 +180,32 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
             <span className="context-menu__label">Delete</span>
             <span className="context-menu__shortcut">Del</span>
           </button>
+
+          <div className="context-menu__divider" />
+
+          {/* Component Creation */}
+          <button className="context-menu__item" onClick={handleCreateComponent}>
+            <span className="context-menu__label">Create Component</span>
+          </button>
+
+          {/* Boolean Operations */}
+          {canBoolean && (
+            <>
+              <div className="context-menu__divider" />
+              <button className="context-menu__item" onClick={() => handleBooleanOp("union")}>
+                <span className="context-menu__label">Boolean Union</span>
+              </button>
+              <button className="context-menu__item" onClick={() => handleBooleanOp("subtract")}>
+                <span className="context-menu__label">Boolean Subtract</span>
+              </button>
+              <button className="context-menu__item" onClick={() => handleBooleanOp("intersect")}>
+                <span className="context-menu__label">Boolean Intersect</span>
+              </button>
+              <button className="context-menu__item" onClick={() => handleBooleanOp("exclude")}>
+                <span className="context-menu__label">Boolean Exclude</span>
+              </button>
+            </>
+          )}
 
           <div className="context-menu__divider" />
 

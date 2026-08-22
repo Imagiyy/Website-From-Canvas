@@ -44,7 +44,7 @@ function getPolygonsBoundingBox(polygons: Point[][]): Geometry {
 }
 
 /** Check if a point is inside a polygon using ray casting */
-function pointInPolygon(point: Point, polygon: Point[]): boolean {
+export function pointInPolygon(point: Point, polygon: Point[]): boolean {
   let inside = false;
   const n = polygon.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {

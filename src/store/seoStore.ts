@@ -50,7 +50,7 @@ export const useSEOStore = create<SEOStore>((set, get) => ({
   },
 
   getPageSEO: (pageId) => {
-    return get().pageSEO[pageId] || { ...DEFAULT_SEO };
+    return get().pageSEO[pageId] || DEFAULT_SEO;
   },
 
   setGlobalAnalyticsId: (id) => set({ globalAnalyticsId: id }),

@@ -11,6 +11,8 @@ import { CurveNode } from "./CurveNode";
 import { StarNode } from "./StarNode";
 import { Shape3DNode } from "./Shape3DNode";
 import { PathNode } from "./PathNode";
+import { useComponentStore, resolveComponentInstance } from "../../store/componentStore";
+import { useEcommerceStore } from "../../store/ecommerceStore";
 
 interface Props {
   node: CanvasNode;
@@ -19,6 +21,9 @@ interface Props {
 }
 
 export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingNodeId }) => {
+  const components = useComponentStore((s) => s.components);
+  const products = useEcommerceStore((s) => s.products);
+
   switch (node.type) {
     case "rectangle":
       return <RectNode node={node} />;
@@ -42,9 +47,43 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
       return <Shape3DNode node={node} />;
     case "brush":
     case "pencil":
+    case "pen":
       return <PathNode node={node} />;
+
+    case "component":
+    case "componentInstance": {
+      const compDef = node.componentId ? components[node.componentId] : undefined;
+      const masterNode = compDef ? nodes[compDef.sourceNodeId] : undefined;
+      if (masterNode) {
+        const resolved = resolveComponentInstance(node, masterNode);
+        return <NodeRenderer node={resolved} nodes={nodes} editingNodeId={editingNodeId} />;
+      }
+      return <RectNode node={node} />;
+    }
+
+    case "product": {
+      const prod = node.productId ? products.find((p) => p.id === node.productId) : undefined;
+      const title = prod?.name || node.name || "Product";
+      const price = prod ? `$${prod.price.toFixed(2)}` : "$49.99";
+      const { x, y, width, height, rotation } = node.geometry;
+      const cx = x + width / 2;
+      const cy = y + height / 2;
+
+      return (
+        <g transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+          <foreignObject data-node-id={node.id} x={x} y={y} width={width} height={height} style={{ overflow: "visible" }}>
+            <div data-node-id={node.id} style={{ width: "100%", height: "100%", background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box", color: "#e4e4f0" }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{title}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#10b981" }}>{price}</div>
+              <button style={{ padding: "4px 8px", background: "#8b5cf6", color: "#fff", border: "none", borderRadius: 6, fontSize: 10, cursor: "pointer" }}>Add to Cart</button>
+            </div>
+          </foreignObject>
+        </g>
+      );
+    }
+
     default:
-      return null;
+      return <RectNode node={node} />;
   }
 });
 

@@ -17,14 +17,21 @@ function styleToCSS(node: CanvasNode): string {
   rules.push(`  height: ${Math.round(g.height)}px;`);
 
   if (g.rotation) rules.push(`  transform: rotate(${g.rotation}deg);`);
-  if (s.gradient) {
-    rules.push(`  background: linear-gradient(${s.gradient.angle ?? 135}deg, ${s.gradient.startColor}, ${s.gradient.endColor});`);
-  } else if (s.fill && s.fill !== "transparent") {
-    rules.push(`  background-color: ${s.fill};`);
+
+  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
+  if (isBoxElement) {
+    if (s.gradient) {
+      rules.push(`  background: linear-gradient(${s.gradient.angle ?? 135}deg, ${s.gradient.startColor}, ${s.gradient.endColor});`);
+    } else if (s.fill && s.fill !== "transparent") {
+      rules.push(`  background-color: ${s.fill};`);
+    }
+    if (s.cornerRadius) rules.push(`  border-radius: ${s.cornerRadius}px;`);
+    if (s.border && s.border.width > 0) {
+      rules.push(`  border: ${s.border.width}px ${s.border.style} ${s.border.color};`);
+    }
   }
+
   if (s.opacity !== undefined && s.opacity !== 1) rules.push(`  opacity: ${s.opacity};`);
-  if (s.cornerRadius) rules.push(`  border-radius: ${s.cornerRadius}px;`);
-  if (s.border) rules.push(`  border: ${s.border.width}px ${s.border.style} ${s.border.color};`);
   if (s.blur) rules.push(`  filter: blur(${s.blur}px);`);
   if (s.backgroundBlur) rules.push(`  backdrop-filter: blur(${s.backgroundBlur}px);`);
   if (s.shadow) rules.push(`  box-shadow: ${s.shadow.x}px ${s.shadow.y}px ${s.shadow.blur}px ${s.shadow.color};`);

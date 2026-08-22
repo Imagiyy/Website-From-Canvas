@@ -1,6 +1,6 @@
 // Component System Store — 2.1 Symbols
 import { create } from "zustand";
-import type { ComponentDefinition, ComponentOverride, CanvasNode, NodeId, NodesById } from "../types/canvas";
+import type { ComponentDefinition, ComponentOverride, CanvasNode, NodesById } from "../types/canvas";
 
 interface ComponentStoreState {
   components: Record<string, ComponentDefinition>;

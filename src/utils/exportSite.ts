@@ -25,7 +25,7 @@ function escapeHtml(str: string): string {
 }
 
 /** Generates CSS rules for a node's geometry & style */
-function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>): string {
+function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>, nodeType?: string): string {
   const rules: string[] = [];
 
   if (geom) {
@@ -38,21 +38,26 @@ function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>):
     }
   }
 
+  const isBoxElement = !nodeType || nodeType === "rectangle" || nodeType === "text" || nodeType === "image" || nodeType === "product";
+
   if (style) {
-    if (style.gradient) {
-      const g = style.gradient;
-      rules.push(`  background: linear-gradient(${g.angle ?? 135}deg, ${g.startColor}, ${g.endColor});`);
-    } else if (style.fill !== undefined) {
-      rules.push(`  background-color: ${style.fill};`);
+    if (isBoxElement) {
+      if (style.gradient) {
+        const g = style.gradient;
+        rules.push(`  background: linear-gradient(${g.angle ?? 135}deg, ${g.startColor}, ${g.endColor});`);
+      } else if (style.fill !== undefined && style.fill !== "transparent") {
+        rules.push(`  background-color: ${style.fill};`);
+      }
+      if (style.cornerRadius !== undefined && style.cornerRadius > 0) {
+        rules.push(`  border-radius: ${style.cornerRadius}px;`);
+      }
+      if (style.border && style.border.width > 0) {
+        rules.push(`  border: ${style.border.width}px ${style.border.style} ${style.border.color};`);
+      }
     }
-    if (style.opacity !== undefined) {
+
+    if (style.opacity !== undefined && style.opacity !== 1) {
       rules.push(`  opacity: ${style.opacity};`);
-    }
-    if (style.cornerRadius !== undefined && style.cornerRadius > 0) {
-      rules.push(`  border-radius: ${style.cornerRadius}px;`);
-    }
-    if (style.border) {
-      rules.push(`  border: ${style.border.width}px ${style.border.style} ${style.border.color};`);
     }
     if (style.shadow) {
       rules.push(
@@ -267,6 +272,9 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
 
       return `${indent}<div id="node-${nid}" class="canvas-element path-node">\n${indent}  <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" overflow="visible">${shadow3d}\n${indent}    ${mainPath}\n${indent}  </svg>\n${indent}</div>`;
     }
+
+    default:
+      return `${indent}<div id="node-${nid}" class="canvas-element"></div>`;
   }
 }
 
@@ -393,7 +401,7 @@ body {
   cssRules.push(`/* Base Desktop Styles */`);
   allNodes.forEach((node) => {
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(node.geometry, node.style);
+    const rules = generateNodeCSSRules(node.geometry, node.style, node.type);
     cssRules.push(`#node-${nid} {\n  z-index: ${node.order};\n${rules}\n}`);
   });
 
@@ -401,7 +409,7 @@ body {
   allNodes.forEach((node) => {
     const effectiveTablet = getEffectiveNode(node, "tablet");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(effectiveTablet.geometry, effectiveTablet.style);
+    const rules = generateNodeCSSRules(effectiveTablet.geometry, effectiveTablet.style, node.type);
     tabletRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 
@@ -413,7 +421,7 @@ body {
   allNodes.forEach((node) => {
     const effectiveMobile = getEffectiveNode(node, "mobile");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(effectiveMobile.geometry, effectiveMobile.style);
+    const rules = generateNodeCSSRules(effectiveMobile.geometry, effectiveMobile.style, node.type);
     mobileRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 

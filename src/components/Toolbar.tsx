@@ -1,10 +1,23 @@
 import React from "react";
 import { useCanvasStore } from "../store/canvasStore";
+import { useAuthStore } from "../store/authStore";
+import CollaborationBar from "./panels/CollaborationBar";
 import "./Toolbar.css";
 
 interface Props {
   onImageUploadClick?: () => void;
   onExportClick?: () => void;
+  onOpenProjects?: () => void;
+  onOpenComponents?: () => void;
+  onOpenTokens?: () => void;
+  onOpenAssets?: () => void;
+  onOpenVersionHistory?: () => void;
+  onOpenComments?: () => void;
+  onOpenInteractions?: () => void;
+  onOpenSEO?: () => void;
+  onOpenCMS?: () => void;
+  onOpenEcommerce?: () => void;
+  onOpenDeploy?: () => void;
 }
 
 const COLOR_PRESETS = [
@@ -12,29 +25,40 @@ const COLOR_PRESETS = [
   "#3B82F6","#6366F1","#8B5CF6","#EC4899","#64748B","#1E293B",
 ];
 
-export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) => {
+export const Toolbar: React.FC<Props> = ({
+  onImageUploadClick,
+  onExportClick,
+  onOpenProjects,
+  onOpenComponents,
+  onOpenTokens,
+  onOpenAssets,
+  onOpenVersionHistory,
+  onOpenComments,
+  onOpenInteractions,
+  onOpenSEO,
+  onOpenCMS,
+  onOpenEcommerce,
+  onOpenDeploy,
+}) => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
   const past = useCanvasStore((s) => s.past);
   const future = useCanvasStore((s) => s.future);
-  const nodes = useCanvasStore((s) => s.nodes);
   const activeColor = useCanvasStore((s) => s.activeColor);
   const setActiveColor = useCanvasStore((s) => s.setActiveColor);
   const setActiveTool = useCanvasStore((s) => s.setActiveTool);
   const undo = useCanvasStore((s) => s.undo);
   const redo = useCanvasStore((s) => s.redo);
-  const bringToFront = useCanvasStore((s) => s.bringToFront);
-  const sendToBack = useCanvasStore((s) => s.sendToBack);
-  const groupSelected = useCanvasStore((s) => s.groupSelected);
-  const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
   const deleteSelected = useCanvasStore((s) => s.deleteSelected);
   const triggerImageUpload = useCanvasStore((s) => s.triggerImageUpload);
   const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
   const setActiveBreakpoint = useCanvasStore((s) => s.setActiveBreakpoint);
 
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
+
   const hasSelection = selectedNodeIds.size > 0;
-  const canGroup = selectedNodeIds.size >= 2;
-  const canUngroup = Array.from(selectedNodeIds).some((id) => nodes[id]?.type === "group");
 
   const handleImageToolClick = () => {
     setActiveTool("image");
@@ -58,7 +82,24 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
   );
 
   return (
-    <div className="toolbar">
+    <div className="toolbar" style={{ flexWrap: "wrap", height: "auto", minHeight: 48, gap: 4, padding: "4px 8px" }}>
+      {/* ══════ PROJECTS & FILE ══════ */}
+      <div className="toolbar__group">
+        <div className="toolbar__group-content">
+          <div className="toolbar__tool-grid">
+            <button className="toolbar__icon-btn" onClick={onOpenProjects} title="Projects Manager">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenVersionHistory} title="Version History">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+          </div>
+        </div>
+        <span className="toolbar__group-label">Project</span>
+      </div>
+
+      <div className="toolbar__group-sep" />
+
       {/* ══════ CLIPBOARD ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content">
@@ -79,11 +120,10 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
 
       <div className="toolbar__group-sep" />
 
-      {/* ══════ TOOLS ══════ */}
+      {/* ══════ TOOLS & VECTOR ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content">
           <div className="toolbar__tool-grid">
-            {/* Row 1 */}
             <ToolBtn tool="select" title="Select (V)">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 1L3 12.5L6.5 9L10.5 15L12.5 14L8.5 8L13 7.5L3 1Z" fill="currentColor"/></svg>
             </ToolBtn>
@@ -96,7 +136,6 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
             <ToolBtn tool="polygon" title="Polygon (G)">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><polygon points="8,1 15,6 12,14 4,14 1,6" stroke="currentColor" strokeWidth="1.3" fill="none"/></svg>
             </ToolBtn>
-            {/* Row 2 */}
             <ToolBtn tool="line" title="Line (L)">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
             </ToolBtn>
@@ -106,8 +145,8 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
             <ToolBtn tool="star" title="Star (S)">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><polygon points="8,1 10.3,5.7 15.5,6.5 11.8,10.1 12.6,15.3 8,12.8 3.4,15.3 4.2,10.1 0.5,6.5 5.7,5.7" stroke="currentColor" strokeWidth="1.1" fill="none"/></svg>
             </ToolBtn>
-            <ToolBtn tool="curve" title="Curve (C)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12C5 4 11 12 14 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
+            <ToolBtn tool="pen" title="Pen Tool (P)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="12" cy="12" r="1"/></svg>
             </ToolBtn>
           </div>
         </div>
@@ -116,42 +155,51 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
 
       <div className="toolbar__group-sep" />
 
-      {/* ══════ INSERT ══════ */}
+      {/* ══════ LIBRARIES & ASSETS ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content">
           <div className="toolbar__tool-grid">
-            <ToolBtn tool="image" title="Image (I)" onClick={handleImageToolClick}>
+            <button className="toolbar__icon-btn" onClick={onOpenComponents} title="Component Library">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenTokens} title="Design Tokens (Colors & Text)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenAssets} title="Asset & Icon Manager">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <ToolBtn tool="image" title="Insert Image" onClick={handleImageToolClick}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><circle cx="5" cy="5.5" r="1.5" fill="currentColor"/><path d="M2 12L6 8L9.5 11.5L11.5 9.5L14 12" stroke="currentColor" strokeWidth="1.1"/></svg>
-            </ToolBtn>
-            <ToolBtn tool="shape3d" title="3D Shape (3)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M8 1V15M2 4.5L8 8L14 4.5" stroke="currentColor" strokeWidth="1"/></svg>
             </ToolBtn>
           </div>
         </div>
-        <span className="toolbar__group-label">Insert</span>
+        <span className="toolbar__group-label">Libraries</span>
       </div>
 
       <div className="toolbar__group-sep" />
 
-      {/* ══════ DRAWING TOOLS ══════ */}
+      {/* ══════ FEATURES & INTEGRATIONS ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content">
           <div className="toolbar__tool-grid">
-            <ToolBtn tool="brush" title="Brush (B)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 2C14 2 12.5 5 10 5.5C7.5 6 4.5 9 4.5 9L2 14L7 11.5C7 11.5 10 8.5 10.5 6C11 3.5 14 2 14 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-            </ToolBtn>
-            <ToolBtn tool="pencil" title="Pencil (P)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </ToolBtn>
-            <ToolBtn tool="fill" title="Fill Bucket (F)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 1.5L2 6.5L8.5 13L13.5 8L7 1.5H4Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M12 11C12 12.5 13.5 14.5 13.5 14.5C13.5 14.5 15 12.5 15 11C15 10.2 14.3 9.5 13.5 9.5C12.7 9.5 12 10.2 12 11Z" fill={activeColor}/></svg>
-            </ToolBtn>
-            <ToolBtn tool="eraser" title="Eraser (E)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 14.5L1 9.5L9.5 1L14.5 6L6 14.5Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M4 14.5H15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-            </ToolBtn>
+            <button className="toolbar__icon-btn" onClick={onOpenInteractions} title="Interactions & Animations">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenComments} title="Comments & Feedback">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenSEO} title="SEO & Analytics">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenCMS} title="CMS Integration">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10"/><path d="M9 12l3 3-3 3"/></svg>
+            </button>
+            <button className="toolbar__icon-btn" onClick={onOpenEcommerce} title="E-commerce Store">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+            </button>
           </div>
         </div>
-        <span className="toolbar__group-label">Draw</span>
+        <span className="toolbar__group-label">Features</span>
       </div>
 
       <div className="toolbar__group-sep" />
@@ -187,30 +235,7 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
 
       <div className="toolbar__group-sep" />
 
-      {/* ══════ LAYERS ══════ */}
-      <div className="toolbar__group">
-        <div className="toolbar__group-content">
-          <div className="toolbar__tool-grid">
-            <button className="toolbar__icon-btn" onClick={groupSelected} disabled={!canGroup} title="Group (Ctrl+G)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3 2"/><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor" opacity="0.6"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={ungroupSelected} disabled={!canUngroup} title="Ungroup (Ctrl+Shift+G)">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/><rect x="8.5" y="8.5" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={bringToFront} disabled={selectedNodeIds.size !== 1} title="Bring to Front">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="6" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.4"/><rect x="5" y="2" width="8" height="8" rx="1" fill="currentColor" opacity="0.9"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={sendToBack} disabled={selectedNodeIds.size !== 1} title="Send to Back">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="6" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" opacity="0.4"/><rect x="1" y="2" width="8" height="8" rx="1" fill="currentColor" opacity="0.9"/></svg>
-            </button>
-          </div>
-        </div>
-        <span className="toolbar__group-label">Layers</span>
-      </div>
-
-      <div className="toolbar__group-sep" />
-
-      {/* ══════ VIEW MODE ══════ */}
+      {/* ══════ BREAKPOINTS ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content">
           <div className="toolbar__view-btns">
@@ -219,7 +244,6 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
               onClick={() => setActiveBreakpoint("desktop")}
               title="Desktop (1200px)"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M5 14.5H11M8 11.5V14.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
               Desktop
             </button>
             <button
@@ -227,7 +251,6 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
               onClick={() => setActiveBreakpoint("tablet")}
               title="Tablet (768px)"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="1.5" width="11" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="12.5" r="0.75" fill="currentColor"/></svg>
               Tablet
             </button>
             <button
@@ -235,7 +258,6 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
               onClick={() => setActiveBreakpoint("mobile")}
               title="Mobile (375px)"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="4" y="1.5" width="8" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="12.5" r="0.75" fill="currentColor"/></svg>
               Mobile
             </button>
           </div>
@@ -245,15 +267,43 @@ export const Toolbar: React.FC<Props> = ({ onImageUploadClick, onExportClick }) 
 
       <div className="toolbar__spacer" />
 
-      {/* ══════ EXPORT ══════ */}
+      {/* ══════ COLLABORATION & AUTH ══════ */}
       <div className="toolbar__group">
-        <div className="toolbar__group-content">
+        <div className="toolbar__group-content" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <CollaborationBar />
+          {isAuthenticated ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => openAuthModal()}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                {user?.name.charAt(0) || "U"}
+              </div>
+            </div>
+          ) : (
+            <button className="panel-btn panel-btn--small" onClick={() => openAuthModal("login")}>Sign In</button>
+          )}
+        </div>
+        <span className="toolbar__group-label">Account</span>
+      </div>
+
+      <div className="toolbar__group-sep" />
+
+      {/* ══════ DEPLOY & EXPORT ══════ */}
+      <div className="toolbar__group">
+        <div className="toolbar__group-content" style={{ display: "flex", gap: 6 }}>
+          <button
+            className="toolbar__labeled-btn"
+            onClick={onOpenDeploy}
+            title="One-Click Deploy (Vercel / Netlify)"
+            style={{ background: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.3)", color: "#10b981" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12A10 10 0 1112 2a10 10 0 0110 10z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            Deploy
+          </button>
           <button
             className="toolbar__labeled-btn toolbar__labeled-btn--primary"
             onClick={onExportClick}
-            title="Publish / Export (HTML & CSS)"
+            title="Export (React, Next.js, HTML, Figma, Images)"
           >
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
             Export
           </button>
         </div>

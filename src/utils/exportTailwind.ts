@@ -10,7 +10,7 @@ function escapeHtml(str: string): string {
 }
 
 /** Map numeric px value to nearest Tailwind spacing class */
-function pxToTw(px: number): string {
+export function pxToTw(px: number): string {
   const map: Record<number, string> = {
     0: "0", 1: "px", 2: "0.5", 4: "1", 8: "2", 12: "3", 16: "4",
     20: "5", 24: "6", 32: "8", 40: "10", 48: "12", 56: "14",
@@ -75,29 +75,31 @@ function nodeToTailwindClasses(node: CanvasNode): string {
 
   if (g.rotation) classes.push(`rotate-[${g.rotation}deg]`);
 
-  if (s.fill && s.fill !== "transparent") {
-    classes.push(colorToTw(s.fill, "bg"));
+  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
+
+  if (isBoxElement) {
+    if (s.fill && s.fill !== "transparent") {
+      classes.push(colorToTw(s.fill, "bg"));
+    }
+    if (s.cornerRadius) {
+      const r = s.cornerRadius;
+      if (r >= 9999) classes.push("rounded-full");
+      else if (r >= 12) classes.push("rounded-xl");
+      else if (r >= 8) classes.push("rounded-lg");
+      else if (r >= 6) classes.push("rounded-md");
+      else if (r >= 4) classes.push("rounded");
+      else classes.push(`rounded-[${r}px]`);
+    }
+    if (s.border && s.border.width > 0) {
+      classes.push(`border-${s.border.width}`);
+      classes.push(colorToTw(s.border.color, "border"));
+      if (s.border.style === "dashed") classes.push("border-dashed");
+      if (s.border.style === "dotted") classes.push("border-dotted");
+    }
   }
 
   if (s.opacity !== undefined && s.opacity !== 1) {
     classes.push(`opacity-${Math.round(s.opacity * 100)}`);
-  }
-
-  if (s.cornerRadius) {
-    const r = s.cornerRadius;
-    if (r >= 9999) classes.push("rounded-full");
-    else if (r >= 12) classes.push("rounded-xl");
-    else if (r >= 8) classes.push("rounded-lg");
-    else if (r >= 6) classes.push("rounded-md");
-    else if (r >= 4) classes.push("rounded");
-    else classes.push(`rounded-[${r}px]`);
-  }
-
-  if (s.border) {
-    classes.push(`border-${s.border.width}`);
-    classes.push(colorToTw(s.border.color, "border"));
-    if (s.border.style === "dashed") classes.push("border-dashed");
-    if (s.border.style === "dotted") classes.push("border-dotted");
   }
 
   if (s.blur) classes.push(`blur-[${s.blur}px]`);

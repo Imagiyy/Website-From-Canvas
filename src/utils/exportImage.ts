@@ -167,7 +167,7 @@ export async function exportAsPDF(nodes: NodesById, width = 1200, height = 900):
   const pdfHeight = height;
 
   const pdf = buildSimplePDF(pngBytes, pdfWidth, pdfHeight);
-  return new Blob([pdf], { type: "application/pdf" });
+  return new Blob([pdf.buffer as ArrayBuffer], { type: "application/pdf" });
 }
 
 /** Build a minimal valid PDF with an embedded PNG image */

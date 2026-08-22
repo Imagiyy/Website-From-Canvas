@@ -1,6 +1,5 @@
 import React from "react";
 import type { CanvasNode } from "../../types/canvas";
-import { getPolygonPoints } from "./PolygonNode";
 
 interface Props {
   node: CanvasNode;

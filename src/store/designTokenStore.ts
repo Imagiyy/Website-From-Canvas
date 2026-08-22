@@ -111,7 +111,7 @@ const DEFAULT_TEXT_STYLES: TextStyleToken[] = [
   },
 ];
 
-export const useDesignTokenStore = create<DesignTokenStore>((set, get) => ({
+export const useDesignTokenStore = create<DesignTokenStore>((set) => ({
   colorTokens: DEFAULT_COLOR_TOKENS,
   textStyleTokens: DEFAULT_TEXT_STYLES,
 

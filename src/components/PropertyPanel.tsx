@@ -280,10 +280,6 @@ export const PropertyPanel: React.FC = () => {
   const node = selectedList[0];
   const { geometry, style } = node;
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateNodeName(node.id, e.target.value);
-  };
-
   const handleGeomChange = (key: keyof typeof geometry, value: number) => {
     if (isNaN(value)) return;
     updateNodeGeometry(node.id, { [key]: value });
@@ -1112,6 +1108,63 @@ export const PropertyPanel: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Phase 2.4 Effects & Filters (Blur, Glassmorphism, Inner Shadow) */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Effects & Filters</span>
+          <div className="property-panel__row">
+            <label>Gaussian Blur ({style.blur ?? 0}px)</label>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              value={style.blur ?? 0}
+              onChange={(e) => updateNodeStyle(node.id, { blur: Number(e.target.value) })}
+              className="property-panel__slider"
+            />
+          </div>
+          <div className="property-panel__row">
+            <label>Backdrop Blur ({style.backgroundBlur ?? 0}px)</label>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              value={style.backgroundBlur ?? 0}
+              onChange={(e) => updateNodeStyle(node.id, { backgroundBlur: Number(e.target.value) })}
+              className="property-panel__slider"
+            />
+          </div>
+        </div>
+
+        {/* Phase 2.5 Responsive Constraints */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Responsive Constraints</span>
+          <div className="property-panel__row">
+            <label>Pin Horizontal</label>
+            <select
+              className="property-panel__select"
+              value={node.layout?.pinX ?? "none"}
+              onChange={(val) => {
+                const pinXVal = val.target.value as any;
+                useCanvasStore.setState((s) => ({
+                  nodes: {
+                    ...s.nodes,
+                    [node.id]: {
+                      ...s.nodes[node.id],
+                      layout: { ...s.nodes[node.id]?.layout, pinX: pinXVal },
+                    },
+                  },
+                }));
+              }}
+            >
+              <option value="none">Free</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+              <option value="both">Left & Right (Stretch)</option>
+              <option value="center">Center</option>
+            </select>
+          </div>
         </div>
 
       </div>

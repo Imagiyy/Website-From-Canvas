@@ -2,6 +2,7 @@ import { useRef, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import { computeSnapping } from "../utils/snapping";
 import { getEffectiveNode, getEffectiveNodesMap } from "../utils/breakpoint";
+import type { ResizeHandle, LineEndpointHandle } from "../types/canvas";
 import { processFreehandPoints } from "../utils/pathUtils";
 
 // ---------------------------------------------------------------------------
@@ -129,7 +130,7 @@ export function useCanvasPointer(
       const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
 
       // 0. Check Element Double Click BEFORE setting pointer capture
-      const targetEl = target as HTMLElement;
+      const targetEl = target as unknown as HTMLElement;
       const closestNodeEl = targetEl.closest?.("[data-node-id]");
       const hitNodeId = closestNodeEl?.getAttribute("data-node-id") ?? target.getAttribute("data-node-id");
       const now = Date.now();
@@ -327,9 +328,10 @@ export function useCanvasPointer(
 
       // 4. Branch on Active Tool (start drawing)
       switch (store.activeTool) {
+        case "pen":
         case "brush":
         case "pencil": {
-          const tool = store.activeTool;
+          const tool = store.activeTool === "pen" ? "pencil" : store.activeTool;
           const initialPts = [{ x: canvasX, y: canvasY }];
           modeRef.current = {
             type: "draw-path",

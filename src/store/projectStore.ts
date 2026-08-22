@@ -1,6 +1,6 @@
 // Project Management Store — 3.1 Multiple Projects with IndexedDB
 import { create } from "zustand";
-import type { ProjectMeta, ProjectData, PagesById, ColorToken, TextStyleToken, ComponentDefinition, PageSEO, AssetItem } from "../types/canvas";
+import type { ProjectMeta, ProjectData } from "../types/canvas";
 
 // ---- IndexedDB helpers ----
 const DB_NAME = "canvassite_projects";

@@ -10,7 +10,6 @@ const EcommercePanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const currency = useEcommerceStore((s) => s.currency);
   const addProduct = useEcommerceStore((s) => s.addProduct);
   const deleteProduct = useEcommerceStore((s) => s.deleteProduct);
-  const updateProduct = useEcommerceStore((s) => s.updateProduct);
   const setPaymentProvider = useEcommerceStore((s) => s.setPaymentProvider);
   const stripePublicKey = useEcommerceStore((s) => s.stripePublicKey);
   const setStripePublicKey = useEcommerceStore((s) => s.setStripePublicKey);

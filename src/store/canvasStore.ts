@@ -10,7 +10,6 @@ import type {
   TextContent,
   ImageContent,
   AlignmentGuide,
-  BreakpointKey,
   Style,
 } from "../types/canvas";
 
@@ -51,6 +50,7 @@ interface CanvasStoreState {
   editingNodeId: NodeId | null; // Text node currently being edited inline
   alignmentGuides: AlignmentGuide[];
   imageUploadHandler: (() => void) | null;
+  activeColor: string;
   mouseCanvasPos: { x: number; y: number };
 
   // ---- History ----
@@ -59,6 +59,7 @@ interface CanvasStoreState {
 }
 
 interface CanvasStoreActions {
+  setActiveColor: (color: string) => void;
   // Grid & Ruler Actions
   toggleShowGrid: () => void;
   setGridSize: (size: number) => void;
@@ -66,11 +67,11 @@ interface CanvasStoreActions {
   toggleShowRulers: () => void;
 
   // Multi-Page Actions
-  // Multi-Page Actions
   addPage: (name?: string) => void;
   deletePage: (pageId: string) => void;
   renamePage: (pageId: string, name: string) => void;
   setActivePage: (pageId: string) => void;
+  setPages: (pages: import("../types/canvas").PagesById, activePageId?: string) => void;
 
   // Breakpoint Switcher & Page Height
   setActiveBreakpoint: (bp: import("../types/canvas").BreakpointKey) => void;
@@ -93,9 +94,11 @@ interface CanvasStoreActions {
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
   updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
   updateNodeContent: (id: NodeId, content: TextContent | ImageContent, skipUndo?: boolean) => void;
+  updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   toggleNodeVisibility: (id: NodeId) => void;
   toggleNodeLock: (id: NodeId) => void;
   deleteSelected: () => void;
+  deleteNode: (id: NodeId) => void;
 
   // Align & Distribute Actions for Selection
   alignSelected: (type: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => void;
@@ -181,6 +184,10 @@ const DEFAULT_NEXT_NUMBER: Record<ElementType, number> = {
   shape3d: 1,
   brush: 1,
   pencil: 1,
+  pen: 1,
+  component: 1,
+  componentInstance: 1,
+  product: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -484,6 +491,20 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       pages: updatedPages,
       activePageId: pageId,
       nodes: newNodes,
+      selectedNodeIds: new Set(),
+      editingNodeId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  setPages: (pages, activePageId) => {
+    const targetPageId = activePageId && pages[activePageId] ? activePageId : Object.keys(pages)[0] || "page-1";
+    const targetNodes = pages[targetPageId]?.nodes ?? {};
+    set({
+      pages,
+      activePageId: targetPageId,
+      nodes: targetNodes,
       selectedNodeIds: new Set(),
       editingNodeId: null,
       past: [],
@@ -878,8 +899,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       const newW = partial.width ?? oldW;
       const newH = partial.height ?? oldH;
 
-      const dx = newX - oldX;
-      const dy = newY - oldY;
       const scaleX = newW / oldW;
       const scaleY = newH / oldH;
 
@@ -962,19 +981,36 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     });
   },
 
-  updateImageFit: (id, fit) => {
+  updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => {
     const state = get();
     const node = state.nodes[id];
-    if (!node || node.type !== "image" || !node.content) return;
+    if (!node || node.type !== "image" || node.content?.kind !== "image") return;
     const snap = snapshot(state);
+    const updatedContent: ImageContent = { ...node.content, fit };
     set({
       nodes: {
         ...state.nodes,
         [id]: {
           ...node,
-          content: { ...node.content, kind: "image", fit },
+          content: updatedContent,
         },
       },
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  deleteNode: (id: NodeId) => {
+    const state = get();
+    if (!state.nodes[id]) return;
+    const snap = snapshot(state);
+    const newNodes = { ...state.nodes };
+    delete newNodes[id];
+    const newSelected = new Set(state.selectedNodeIds);
+    newSelected.delete(id);
+    set({
+      nodes: newNodes,
+      selectedNodeIds: newSelected,
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });

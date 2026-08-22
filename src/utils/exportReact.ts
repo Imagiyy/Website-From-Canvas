@@ -21,12 +21,17 @@ function styleToCSSObject(node: CanvasNode): string {
   rules.push(`height: ${Math.round(g.height)}`);
 
   if (g.rotation) rules.push(`transform: 'rotate(${g.rotation}deg)'`);
-  if (s.fill && s.fill !== "transparent") rules.push(`backgroundColor: '${s.fill}'`);
-  if (s.opacity !== undefined && s.opacity !== 1) rules.push(`opacity: ${s.opacity}`);
-  if (s.cornerRadius) rules.push(`borderRadius: ${s.cornerRadius}`);
-  if (s.border) {
-    rules.push(`border: '${s.border.width}px ${s.border.style} ${s.border.color}'`);
+  
+  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
+  if (isBoxElement) {
+    if (s.fill && s.fill !== "transparent") rules.push(`backgroundColor: '${s.fill}'`);
+    if (s.cornerRadius) rules.push(`borderRadius: ${s.cornerRadius}`);
+    if (s.border && s.border.width > 0) {
+      rules.push(`border: '${s.border.width}px ${s.border.style} ${s.border.color}'`);
+    }
   }
+
+  if (s.opacity !== undefined && s.opacity !== 1) rules.push(`opacity: ${s.opacity}`);
   if (s.blur) rules.push(`filter: 'blur(${s.blur}px)'`);
   if (s.backgroundBlur) rules.push(`backdropFilter: 'blur(${s.backgroundBlur}px)'`);
   if (s.shadow) {
