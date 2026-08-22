@@ -5,7 +5,7 @@ import LayerPanel from "./components/LayerPanel";
 import PropertyPanel from "./components/PropertyPanel";
 import ExportModal from "./components/ExportModal";
 import StatusBar from "./components/StatusBar";
-import ContextMenu, { ContextMenuProps } from "./components/ContextMenu";
+import ContextMenu from "./components/ContextMenu";
 import "./App.css";
 
 export interface ContextMenuState {

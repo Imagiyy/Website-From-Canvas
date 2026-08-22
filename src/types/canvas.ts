@@ -1,5 +1,5 @@
-// CanvasSite data model — Phase 1 Step 1 (Responsive Breakpoints)
-// Extended to support rectangle, text, image, line, group + alignment guides + responsive overrides.
+// CanvasSite data model — Extended for Phases 2-4
+// Supports: components, pen tool, effects, layout, interactions, comments, CMS, e-commerce, SEO
 
 export type NodeId = string;
 
@@ -15,7 +15,11 @@ export type ElementType =
   | "star"
   | "shape3d"
   | "brush"
-  | "pencil";
+  | "pencil"
+  | "pen"
+  | "component"
+  | "componentInstance"
+  | "product";
 
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
 
@@ -65,15 +69,202 @@ export interface GradientFill {
   angle?: number; // 0-360 deg
 }
 
+// ---------- Effects & Filters (2.4) ----------
+
+export interface BorderStyle {
+  color: string;
+  width: number;
+  style: "solid" | "dashed" | "dotted";
+}
+
+export interface FillLayer {
+  id: string;
+  type: "solid" | "gradient";
+  color?: string;
+  gradient?: GradientFill;
+  opacity: number;
+  visible: boolean;
+}
+
+// ---------- Layout Constraints (2.5) ----------
+
+export interface LayoutConstraints {
+  display?: "absolute" | "flex";
+  flexDirection?: "row" | "column";
+  gap?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
+  wrap?: boolean;
+  pinLeft?: boolean;
+  pinRight?: boolean;
+  pinTop?: boolean;
+  pinBottom?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+}
+
+// ---------- Interactions & Animations (2.6) ----------
+
+export type ClickActionType = "navigateTo" | "openUrl" | "toggleVisibility" | "scrollTo" | "none";
+
+export interface ClickAction {
+  type: ClickActionType;
+  target?: string; // page slug, URL, element ID, or section ID
+  openInNewTab?: boolean;
+}
+
+export type AnimationType = "fadeIn" | "slideInLeft" | "slideInRight" | "slideInUp" | "slideInDown" | "scaleIn" | "rotateIn" | "bounceIn" | "none";
+export type EasingType = "ease" | "ease-in" | "ease-out" | "ease-in-out" | "linear" | "cubic-bezier";
+
+export interface EntranceAnimation {
+  type: AnimationType;
+  duration: number; // ms
+  delay: number; // ms
+  easing: EasingType;
+}
+
+export interface ScrollAnimation {
+  type: AnimationType;
+  triggerOffset: number; // 0-1 (percentage of viewport)
+  duration: number;
+  easing: EasingType;
+}
+
+export interface HoverState {
+  style?: Partial<Style>;
+  transition?: number; // ms
+}
+
+export interface ElementInteractions {
+  hover?: HoverState;
+  click?: ClickAction;
+  entrance?: EntranceAnimation;
+  scroll?: ScrollAnimation;
+}
+
+// ---------- Pen Tool (2.3) ----------
+
+export interface PenPoint {
+  x: number;
+  y: number;
+  handleIn?: { x: number; y: number }; // bezier control point
+  handleOut?: { x: number; y: number }; // bezier control point
+}
+
+// ---------- Component System (2.1) ----------
+
+export interface ComponentDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  sourceNodeId: NodeId; // The master node
+  thumbnail?: string; // data URL thumbnail
+  createdAt: number;
+}
+
+export interface ComponentOverride {
+  geometry?: Partial<Geometry>;
+  style?: Partial<Style>;
+  content?: TextContent | ImageContent;
+}
+
+// ---------- Comments (3.4) ----------
+
+export interface Comment {
+  id: string;
+  elementId?: NodeId;
+  position: { x: number; y: number };
+  text: string;
+  author: string;
+  avatarColor: string;
+  timestamp: number;
+  resolved: boolean;
+  replies: CommentReply[];
+}
+
+export interface CommentReply {
+  id: string;
+  text: string;
+  author: string;
+  avatarColor: string;
+  timestamp: number;
+}
+
+// ---------- SEO (4.3) ----------
+
+export interface PageSEO {
+  title?: string;
+  description?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  favicon?: string;
+  canonicalUrl?: string;
+  robots?: string;
+  analyticsId?: string;
+}
+
+// ---------- CMS (4.4) ----------
+
+export type CMSFieldType = "text" | "richText" | "image" | "number" | "boolean" | "date" | "list";
+
+export interface CMSField {
+  id: string;
+  name: string;
+  type: CMSFieldType;
+  required: boolean;
+  defaultValue?: string;
+}
+
+export interface CMSContentType {
+  id: string;
+  name: string;
+  slug: string;
+  fields: CMSField[];
+}
+
+export interface CMSBinding {
+  elementId: NodeId;
+  fieldId: string;
+  contentTypeId: string;
+}
+
+// ---------- E-commerce (4.5) ----------
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  images: string[];
+  category: string;
+  inStock: boolean;
+  variants?: ProductVariant[];
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  price?: number;
+  inStock: boolean;
+}
+
+export interface CartItem {
+  productId: string;
+  variantId?: string;
+  quantity: number;
+}
+
+// ---------- Core Style (extended) ----------
+
 export interface Style {
   fill?: string; // hex or "transparent"
   gradient?: GradientFill; // Linear / radial gradient fill override
   opacity: number; // 0-1
-  border?: {
-    color: string;
-    width: number;
-    style: "solid" | "dashed" | "dotted";
-  };
+  border?: BorderStyle;
   cornerRadius?: number;
   typography?: TypographyStyle;
   shadow?: ShadowStyle;
@@ -92,6 +283,13 @@ export interface Style {
 
   // Freehand Brush & Pencil extensions
   brushSize?: number; // 1-100px
+
+  // Effects & Filters (2.4)
+  blur?: number; // Gaussian blur (0-50px)
+  backgroundBlur?: number; // Backdrop-filter blur for glassmorphism (0-50px)
+  innerShadow?: ShadowStyle;
+  borders?: BorderStyle[]; // Multiple borders
+  fills?: FillLayer[]; // Multiple layered fills
 }
 
 export interface TextContent {
@@ -124,6 +322,30 @@ export interface CanvasNode {
   pathData?: string; // SVG path data for freehand brush and pencil strokes
   visible?: boolean; // false = hidden on canvas
   locked?: boolean; // true = locked from selection and editing
+
+  // Pen tool (2.3)
+  penPoints?: PenPoint[];
+  closedPath?: boolean;
+
+  // Mask/clip (2.3)
+  maskId?: NodeId; // ID of shape used as mask
+  clipPath?: string; // SVG clip-path data
+
+  // Component system (2.1)
+  componentId?: string; // Reference to ComponentDefinition ID (for instances)
+  componentOverrides?: ComponentOverride; // Instance-level overrides
+
+  // Layout (2.5)
+  layout?: LayoutConstraints;
+
+  // Interactions (2.6)
+  interactions?: ElementInteractions;
+
+  // CMS binding (4.4)
+  cmsBinding?: CMSBinding;
+
+  // Product reference (4.5)
+  productId?: string;
 }
 
 // The canvas holds a flat map of nodes, not a nested tree:
@@ -135,6 +357,7 @@ export interface CanvasPage {
   name: string;
   slug: string;
   nodes: NodesById;
+  seo?: PageSEO; // Per-page SEO settings (4.3)
 }
 
 export type PagesById = Record<string, CanvasPage>;
@@ -170,8 +393,10 @@ export type ActiveTool =
   | "shape3d"
   | "brush"
   | "pencil"
+  | "pen"
   | "fill"
-  | "eraser";
+  | "eraser"
+  | "comment";
 
 /** Which resize handle is being dragged */
 export type ResizeHandle =
@@ -186,3 +411,62 @@ export type ResizeHandle =
 
 /** For line endpoint dragging */
 export type LineEndpointHandle = "start" | "end";
+
+// ---------- Design Tokens (2.2) ----------
+
+export interface ColorToken {
+  id: string;
+  name: string;
+  value: string; // hex color
+}
+
+export interface TextStyleToken {
+  id: string;
+  name: string;
+  style: TypographyStyle;
+}
+
+// ---------- Version History (3.3) ----------
+
+export interface VersionCheckpoint {
+  id: string;
+  name: string;
+  timestamp: number;
+  pages: PagesById;
+  thumbnail?: string;
+}
+
+// ---------- Asset (3.2) ----------
+
+export interface AssetItem {
+  id: string;
+  name: string;
+  type: "image" | "svg" | "video";
+  dataUrl: string;
+  thumbnail?: string;
+  size: number; // bytes
+  width?: number;
+  height?: number;
+  uploadedAt: number;
+}
+
+// ---------- Project (3.1) ----------
+
+export interface ProjectMeta {
+  id: string;
+  name: string;
+  thumbnail?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectData {
+  meta: ProjectMeta;
+  pages: PagesById;
+  activePageId: string;
+  colorTokens: ColorToken[];
+  textStyleTokens: TextStyleToken[];
+  components: Record<string, ComponentDefinition>;
+  seo: Record<string, PageSEO>;
+  assets: AssetItem[];
+}
