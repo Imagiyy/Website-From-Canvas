@@ -1,6 +1,26 @@
 // Project Management Store — 3.1 Multiple Projects with IndexedDB
 import { create } from "zustand";
 import type { ProjectMeta, ProjectData } from "../types/canvas";
+import { useDesignTokenStore } from "./designTokenStore";
+import { useComponentStore } from "./componentStore";
+import { useSEOStore } from "./seoStore";
+import { useAssetStore } from "./assetStore";
+
+export function syncProjectState(project: ProjectData) {
+  useDesignTokenStore.setState({
+    colorTokens: project.colorTokens || [],
+    textStyleTokens: project.textStyleTokens || [],
+  });
+  useComponentStore.setState({
+    components: project.components || {},
+  });
+  useSEOStore.setState({
+    pageSEO: project.seo || {},
+  });
+  useAssetStore.setState({
+    assets: project.assets || [],
+  });
+}
 
 // ---- IndexedDB helpers ----
 const DB_NAME = "canvassite_projects";
@@ -158,12 +178,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
   },
 
+
+
   loadProject: async (id) => {
     set({ isLoading: true });
     try {
       const project = await loadProjectFromDB(id);
       if (project) {
         set({ currentProjectId: id });
+        syncProjectState(project);
       }
       return project;
     } finally {

@@ -15,7 +15,7 @@ type InteractionMode =
   | { type: "draw-line"; startCanvasX: number; startCanvasY: number; hitNodeId?: string }
   | {
       type: "draw-path";
-      tool: "brush" | "pencil";
+      tool: "brush" | "pencil" | "pen";
       points: { x: number; y: number }[];
       hitNodeId?: string;
     }
@@ -69,7 +69,7 @@ export interface DrawPreview {
   width: number;
   height: number;
   pathData?: string;
-  tool?: "brush" | "pencil";
+  tool?: "brush" | "pencil" | "pen";
 }
 
 const MIN_SIZE = 4;
@@ -331,7 +331,7 @@ export function useCanvasPointer(
         case "pen":
         case "brush":
         case "pencil": {
-          const tool = store.activeTool === "pen" ? "pencil" : store.activeTool;
+          const tool = store.activeTool;
           const initialPts = [{ x: canvasX, y: canvasY }];
           modeRef.current = {
             type: "draw-path",

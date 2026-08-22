@@ -83,6 +83,7 @@ export function getEffectiveNode(
 
 /**
  * Helper to get all effective nodes mapped by NodeId for a given breakpoint.
+ * Performs smart automatic responsive reflow for mobile viewports so side-by-side elements stack neatly.
  */
 export function getEffectiveNodesMap(
   nodes: Record<string, CanvasNode>,
@@ -91,8 +92,31 @@ export function getEffectiveNodesMap(
   if (activeBreakpoint === "desktop") return nodes;
 
   const effectiveMap: Record<string, CanvasNode> = {};
-  Object.keys(nodes).forEach((id) => {
-    effectiveMap[id] = getEffectiveNode(nodes[id], activeBreakpoint);
+  const nodeList = Object.values(nodes).map((n) => getEffectiveNode(n, activeBreakpoint));
+
+  if (activeBreakpoint === "mobile") {
+    // Sort top-to-bottom, left-to-right
+    const sorted = [...nodeList].sort((a, b) => a.geometry.y - b.geometry.y || a.geometry.x - b.geometry.x);
+    let currentY = sorted[0]?.geometry.y ?? 20;
+
+    sorted.forEach((node) => {
+      // If node width is large (>40% screen), stack vertically
+      const isWide = node.geometry.width > 120;
+      let newY = node.geometry.y;
+      if (isWide && node.geometry.y < currentY) {
+        newY = currentY + 15;
+      }
+      effectiveMap[node.id] = {
+        ...node,
+        geometry: { ...node.geometry, y: newY },
+      };
+      currentY = Math.max(currentY, newY + node.geometry.height);
+    });
+    return effectiveMap;
+  }
+
+  nodeList.forEach((node) => {
+    effectiveMap[node.id] = node;
   });
   return effectiveMap;
 }

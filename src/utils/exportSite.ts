@@ -25,16 +25,26 @@ function escapeHtml(str: string): string {
 }
 
 /** Generates CSS rules for a node's geometry & style */
-function generateNodeCSSRules(geom?: Partial<Geometry>, style?: Partial<Style>, nodeType?: string): string {
+function generateNodeCSSRules(node: CanvasNode, nodes: NodesById, geom?: Partial<Geometry>, style?: Partial<Style>, nodeType?: string): string {
   const rules: string[] = [];
 
-  if (geom) {
-    if (geom.x !== undefined) rules.push(`  left: ${Math.round(geom.x)}px;`);
-    if (geom.y !== undefined) rules.push(`  top: ${Math.round(geom.y)}px;`);
-    if (geom.width !== undefined) rules.push(`  width: ${Math.round(geom.width)}px;`);
-    if (geom.height !== undefined) rules.push(`  height: ${Math.round(geom.height)}px;`);
-    if (geom.rotation !== undefined && geom.rotation !== 0) {
-      rules.push(`  transform: rotate(${Math.round(geom.rotation)}deg);`);
+  let effectiveGeom = geom;
+  if (node.parentId && nodes[node.parentId] && geom) {
+    const parentGeom = nodes[node.parentId].geometry;
+    effectiveGeom = {
+      ...geom,
+      x: (geom.x ?? 0) - parentGeom.x,
+      y: (geom.y ?? 0) - parentGeom.y,
+    };
+  }
+
+  if (effectiveGeom) {
+    if (effectiveGeom.x !== undefined) rules.push(`  left: ${Math.round(effectiveGeom.x)}px;`);
+    if (effectiveGeom.y !== undefined) rules.push(`  top: ${Math.round(effectiveGeom.y)}px;`);
+    if (effectiveGeom.width !== undefined) rules.push(`  width: ${Math.round(effectiveGeom.width)}px;`);
+    if (effectiveGeom.height !== undefined) rules.push(`  height: ${Math.round(effectiveGeom.height)}px;`);
+    if (effectiveGeom.rotation !== undefined && effectiveGeom.rotation !== 0) {
+      rules.push(`  transform: rotate(${Math.round(effectiveGeom.rotation)}deg);`);
     }
   }
 
@@ -303,10 +313,16 @@ export function generateMultiPageSiteCode(
   activePageId: string,
   currentNodes: NodesById
 ): ExportedMultiPageSiteCode {
+  const safePages = Object.keys(pages).length > 0 ? pages : { "page-1": { id: "page-1", name: "Home", slug: "index", nodes: currentNodes } };
+  const activePage = safePages[activePageId] ?? Object.values(safePages)[0];
+  if (!activePage) {
+    return { pageFiles: [], css: "" };
+  }
+
   const allPagesMap = {
-    ...pages,
-    [activePageId]: {
-      ...pages[activePageId],
+    ...safePages,
+    [activePage.id]: {
+      ...activePage,
       nodes: currentNodes,
     },
   };
@@ -398,10 +414,15 @@ body {
 }
 `);
 
+  const allNodesMap: NodesById = {};
+  allNodes.forEach((n) => {
+    allNodesMap[n.id] = n;
+  });
+
   cssRules.push(`/* Base Desktop Styles */`);
   allNodes.forEach((node) => {
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(node.geometry, node.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, node.geometry, node.style, node.type);
     cssRules.push(`#node-${nid} {\n  z-index: ${node.order};\n${rules}\n}`);
   });
 
@@ -409,7 +430,7 @@ body {
   allNodes.forEach((node) => {
     const effectiveTablet = getEffectiveNode(node, "tablet");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(effectiveTablet.geometry, effectiveTablet.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, effectiveTablet.geometry, effectiveTablet.style, node.type);
     tabletRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 
@@ -421,7 +442,7 @@ body {
   allNodes.forEach((node) => {
     const effectiveMobile = getEffectiveNode(node, "mobile");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(effectiveMobile.geometry, effectiveMobile.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, effectiveMobile.geometry, effectiveMobile.style, node.type);
     mobileRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 

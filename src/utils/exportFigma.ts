@@ -209,9 +209,13 @@ export function exportToFigma(
   currentNodes: NodesById,
   projectName = "CanvasSite Export"
 ): string {
+  const safePages = Object.keys(pages).length > 0 ? pages : { "page-1": { id: "page-1", name: "Home", slug: "index", nodes: currentNodes } };
+  const activePage = safePages[activePageId] ?? Object.values(safePages)[0];
+  if (!activePage) return JSON.stringify({ schemaVersion: 0, name: projectName, document: { id: projectName, name: projectName, type: "DOCUMENT", children: [] } }, null, 2);
+
   const allPages = {
-    ...pages,
-    [activePageId]: { ...pages[activePageId], nodes: currentNodes },
+    ...safePages,
+    [activePage.id]: { ...activePage, nodes: currentNodes },
   };
 
   const canvasPages = Object.values(allPages).map((page) => {

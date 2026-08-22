@@ -26,6 +26,7 @@ import { useCanvasStore } from "./store/canvasStore";
 import { useProjectStore } from "./store/projectStore";
 import { useCollaborationStore } from "./store/collaborationStore";
 import { useCommentStore } from "./store/commentStore";
+import { getEnabledFeatures } from "./config/productScope";
 
 import "./App.css";
 
@@ -50,6 +51,7 @@ function App() {
   const [isDeployOpen, setIsDeployOpen] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const features = getEnabledFeatures();
 
   const isShareDialogOpen = useCollaborationStore((s) => s.isShareDialogOpen);
   const closeShareDialog = useCollaborationStore((s) => s.closeShareDialog);
@@ -158,19 +160,19 @@ function App() {
 
       {/* Feature Modals */}
       <ExportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
-      {isProjectsOpen && <ProjectManager onClose={() => setIsProjectsOpen(false)} onLoadProject={handleLoadProject} />}
-      {isComponentsOpen && <ComponentLibraryPanel onClose={() => setIsComponentsOpen(false)} />}
-      {isTokensOpen && <DesignTokensPanel onClose={() => setIsTokensOpen(false)} />}
-      {isAssetsOpen && <AssetManager onClose={() => setIsAssetsOpen(false)} onSelectAsset={handleSelectAsset} />}
-      {isVersionHistoryOpen && <VersionHistory onClose={() => setIsVersionHistoryOpen(false)} onRestore={handleRestoreVersion} />}
-      {isCommentsOpen && <CommentsPanel onClose={() => setIsCommentsOpen(false)} />}
-      {isInteractionsOpen && <InteractionsPanel onClose={() => setIsInteractionsOpen(false)} />}
-      {isSEOOpen && <SEOPanel onClose={() => setIsSEOOpen(false)} />}
-      {isCMSOpen && <CMSPanel onClose={() => setIsCMSOpen(false)} />}
-      {isEcommerceOpen && <EcommercePanel onClose={() => setIsEcommerceOpen(false)} />}
-      {isDeployOpen && <DeployPanel onClose={() => setIsDeployOpen(false)} />}
-      {isShareDialogOpen && <ShareDialog onClose={closeShareDialog} />}
-      <AuthModal />
+      {features.projects && isProjectsOpen && <ProjectManager onClose={() => setIsProjectsOpen(false)} onLoadProject={handleLoadProject} />}
+      {features.componentLibrary && isComponentsOpen && <ComponentLibraryPanel onClose={() => setIsComponentsOpen(false)} />}
+      {features.designTokens && isTokensOpen && <DesignTokensPanel onClose={() => setIsTokensOpen(false)} />}
+      {features.assetManager && isAssetsOpen && <AssetManager onClose={() => setIsAssetsOpen(false)} onSelectAsset={handleSelectAsset} />}
+      {features.versionHistory && isVersionHistoryOpen && <VersionHistory onClose={() => setIsVersionHistoryOpen(false)} onRestore={handleRestoreVersion} />}
+      {features.comments && isCommentsOpen && <CommentsPanel onClose={() => setIsCommentsOpen(false)} />}
+      {features.interactions && isInteractionsOpen && <InteractionsPanel onClose={() => setIsInteractionsOpen(false)} />}
+      {features.seo && isSEOOpen && <SEOPanel onClose={() => setIsSEOOpen(false)} />}
+      {features.cms && isCMSOpen && <CMSPanel onClose={() => setIsCMSOpen(false)} />}
+      {features.ecommerce && isEcommerceOpen && <EcommercePanel onClose={() => setIsEcommerceOpen(false)} />}
+      {features.deployment && isDeployOpen && <DeployPanel onClose={() => setIsDeployOpen(false)} />}
+      {features.collaboration && isShareDialogOpen && <ShareDialog onClose={closeShareDialog} />}
+      {features.auth && <AuthModal />}
 
       {contextMenu && (
         <ContextMenu

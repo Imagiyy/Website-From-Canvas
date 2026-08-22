@@ -5,9 +5,13 @@ function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Page";
 }
 
-function styleToCSS(node: CanvasNode): string {
+function styleToCSS(node: CanvasNode, nodes?: NodesById): string {
   const rules: string[] = [];
-  const g = node.geometry;
+  let g = node.geometry;
+  if (node.parentId && nodes && nodes[node.parentId]) {
+    const parentGeom = nodes[node.parentId].geometry;
+    g = { ...g, x: g.x - parentGeom.x, y: g.y - parentGeom.y };
+  }
   const s = node.style;
 
   rules.push(`  position: absolute;`);
@@ -91,9 +95,13 @@ export function exportToNextjs(
   currentNodes: NodesById,
   seoData?: Record<string, PageSEO>
 ): ExportedNextFile[] {
+  const safePages = Object.keys(pages).length > 0 ? pages : { "page-1": { id: "page-1", name: "Home", slug: "index", nodes: currentNodes } };
+  const activePage = safePages[activePageId] ?? Object.values(safePages)[0];
+  if (!activePage) return [];
+
   const allPages = {
-    ...pages,
-    [activePageId]: { ...pages[activePageId], nodes: currentNodes },
+    ...safePages,
+    [activePage.id]: { ...activePage, nodes: currentNodes },
   };
 
   const files: ExportedNextFile[] = [];

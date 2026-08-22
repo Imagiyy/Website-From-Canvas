@@ -22,7 +22,12 @@ const VersionHistory: React.FC<{ onClose: () => void; onRestore: (pages: import(
 
   const handleCreate = async () => {
     const name = newName.trim() || `Checkpoint ${checkpoints.length + 1}`;
-    const allPages = { ...pages, [activePageId]: { ...pages[activePageId], nodes } };
+    const safePages = Object.keys(pages).length > 0 ? pages : { "page-1": { id: "page-1", name: "Home", slug: "index", nodes } };
+    const activePage = safePages[activePageId] ?? Object.values(safePages)[0];
+    const allPages = {
+      ...safePages,
+      ...(activePage ? { [activePage.id]: { ...activePage, nodes } } : {}),
+    };
     await createCheckpoint(name, allPages);
     setNewName("");
   };

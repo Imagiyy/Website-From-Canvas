@@ -1,6 +1,7 @@
 import React from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import { useAuthStore } from "../store/authStore";
+import { getEnabledFeatures } from "../config/productScope";
 import CollaborationBar from "./panels/CollaborationBar";
 import "./Toolbar.css";
 
@@ -57,6 +58,7 @@ export const Toolbar: React.FC<Props> = ({
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const openAuthModal = useAuthStore((s) => s.openAuthModal);
+  const features = getEnabledFeatures();
 
   const hasSelection = selectedNodeIds.size > 0;
 
@@ -84,19 +86,23 @@ export const Toolbar: React.FC<Props> = ({
   return (
     <div className="toolbar" style={{ flexWrap: "wrap", height: "auto", minHeight: 48, gap: 4, padding: "4px 8px" }}>
       {/* ══════ PROJECTS & FILE ══════ */}
-      <div className="toolbar__group">
-        <div className="toolbar__group-content">
-          <div className="toolbar__tool-grid">
-            <button className="toolbar__icon-btn" onClick={onOpenProjects} title="Projects Manager">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenVersionHistory} title="Version History">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </button>
+      {features.projects && (
+        <div className="toolbar__group">
+          <div className="toolbar__group-content">
+            <div className="toolbar__tool-grid">
+              <button className="toolbar__icon-btn" onClick={onOpenProjects} title="Projects Manager">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              </button>
+              {features.versionHistory && (
+                <button className="toolbar__icon-btn" onClick={onOpenVersionHistory} title="Version History">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </button>
+              )}
+            </div>
           </div>
+          <span className="toolbar__group-label">Project</span>
         </div>
-        <span className="toolbar__group-label">Project</span>
-      </div>
+      )}
 
       <div className="toolbar__group-sep" />
 
@@ -156,51 +162,71 @@ export const Toolbar: React.FC<Props> = ({
       <div className="toolbar__group-sep" />
 
       {/* ══════ LIBRARIES & ASSETS ══════ */}
-      <div className="toolbar__group">
-        <div className="toolbar__group-content">
-          <div className="toolbar__tool-grid">
-            <button className="toolbar__icon-btn" onClick={onOpenComponents} title="Component Library">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenTokens} title="Design Tokens (Colors & Text)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenAssets} title="Asset & Icon Manager">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            </button>
-            <ToolBtn tool="image" title="Insert Image" onClick={handleImageToolClick}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><circle cx="5" cy="5.5" r="1.5" fill="currentColor"/><path d="M2 12L6 8L9.5 11.5L11.5 9.5L14 12" stroke="currentColor" strokeWidth="1.1"/></svg>
-            </ToolBtn>
+      {(features.componentLibrary || features.designTokens || features.assetManager) && (
+        <div className="toolbar__group">
+          <div className="toolbar__group-content">
+            <div className="toolbar__tool-grid">
+              {features.componentLibrary && (
+                <button className="toolbar__icon-btn" onClick={onOpenComponents} title="Component Library">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+              )}
+              {features.designTokens && (
+                <button className="toolbar__icon-btn" onClick={onOpenTokens} title="Design Tokens (Colors & Text)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </button>
+              )}
+              {features.assetManager && (
+                <button className="toolbar__icon-btn" onClick={onOpenAssets} title="Asset & Icon Manager">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </button>
+              )}
+              <ToolBtn tool="image" title="Insert Image" onClick={handleImageToolClick}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><circle cx="5" cy="5.5" r="1.5" fill="currentColor"/><path d="M2 12L6 8L9.5 11.5L11.5 9.5L14 12" stroke="currentColor" strokeWidth="1.1"/></svg>
+              </ToolBtn>
+            </div>
           </div>
+          <span className="toolbar__group-label">Libraries</span>
         </div>
-        <span className="toolbar__group-label">Libraries</span>
-      </div>
+      )}
 
       <div className="toolbar__group-sep" />
 
       {/* ══════ FEATURES & INTEGRATIONS ══════ */}
-      <div className="toolbar__group">
-        <div className="toolbar__group-content">
-          <div className="toolbar__tool-grid">
-            <button className="toolbar__icon-btn" onClick={onOpenInteractions} title="Interactions & Animations">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenComments} title="Comments & Feedback">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenSEO} title="SEO & Analytics">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenCMS} title="CMS Integration">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10"/><path d="M9 12l3 3-3 3"/></svg>
-            </button>
-            <button className="toolbar__icon-btn" onClick={onOpenEcommerce} title="E-commerce Store">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-            </button>
+      {(features.interactions || features.comments || features.seo || features.cms || features.ecommerce) && (
+        <div className="toolbar__group">
+          <div className="toolbar__group-content">
+            <div className="toolbar__tool-grid">
+              {features.interactions && (
+                <button className="toolbar__icon-btn" onClick={onOpenInteractions} title="Interactions & Animations">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </button>
+              )}
+              {features.comments && (
+                <button className="toolbar__icon-btn" onClick={onOpenComments} title="Comments & Feedback">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                </button>
+              )}
+              {features.seo && (
+                <button className="toolbar__icon-btn" onClick={onOpenSEO} title="SEO & Analytics">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+              )}
+              {features.cms && (
+                <button className="toolbar__icon-btn" onClick={onOpenCMS} title="CMS Integration">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10"/><path d="M9 12l3 3-3 3"/></svg>
+                </button>
+              )}
+              {features.ecommerce && (
+                <button className="toolbar__icon-btn" onClick={onOpenEcommerce} title="E-commerce Store">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                </button>
+              )}
+            </div>
           </div>
+          <span className="toolbar__group-label">Features</span>
         </div>
-        <span className="toolbar__group-label">Features</span>
-      </div>
+      )}
 
       <div className="toolbar__group-sep" />
 
@@ -268,36 +294,42 @@ export const Toolbar: React.FC<Props> = ({
       <div className="toolbar__spacer" />
 
       {/* ══════ COLLABORATION & AUTH ══════ */}
-      <div className="toolbar__group">
-        <div className="toolbar__group-content" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <CollaborationBar />
-          {isAuthenticated ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => openAuthModal()}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
-                {user?.name.charAt(0) || "U"}
-              </div>
-            </div>
-          ) : (
-            <button className="panel-btn panel-btn--small" onClick={() => openAuthModal("login")}>Sign In</button>
-          )}
+      {(features.collaboration || features.auth) && (
+        <div className="toolbar__group">
+          <div className="toolbar__group-content" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {features.collaboration && <CollaborationBar />}
+            {features.auth && (
+              isAuthenticated ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => openAuthModal()}>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                    {user?.name.charAt(0) || "U"}
+                  </div>
+                </div>
+              ) : (
+                <button className="panel-btn panel-btn--small" onClick={() => openAuthModal("login")}>Sign In</button>
+              )
+            )}
+          </div>
+          <span className="toolbar__group-label">Account</span>
         </div>
-        <span className="toolbar__group-label">Account</span>
-      </div>
+      )}
 
       <div className="toolbar__group-sep" />
 
       {/* ══════ DEPLOY & EXPORT ══════ */}
       <div className="toolbar__group">
         <div className="toolbar__group-content" style={{ display: "flex", gap: 6 }}>
-          <button
-            className="toolbar__labeled-btn"
-            onClick={onOpenDeploy}
-            title="One-Click Deploy (Vercel / Netlify)"
-            style={{ background: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.3)", color: "#10b981" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12A10 10 0 1112 2a10 10 0 0110 10z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-            Deploy
-          </button>
+          {features.deployment && onOpenDeploy && (
+            <button
+              className="toolbar__labeled-btn"
+              onClick={onOpenDeploy}
+              title="One-Click Deploy (Vercel / Netlify)"
+              style={{ background: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.3)", color: "#10b981" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12A10 10 0 1112 2a10 10 0 0110 10z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+              Deploy
+            </button>
+          )}
           <button
             className="toolbar__labeled-btn toolbar__labeled-btn--primary"
             onClick={onExportClick}

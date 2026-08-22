@@ -10,9 +10,47 @@ interface Point {
   y: number;
 }
 
-/** Convert node geometry to a simple polygon (rectangle approximation) */
+/** Convert node geometry to precise shape polygon vertices */
 function nodeToPolygon(node: CanvasNode): Point[] {
   const { x, y, width, height } = node.geometry;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const rx = width / 2;
+  const ry = height / 2;
+
+  if (node.type === "circle") {
+    const points: Point[] = [];
+    const steps = 16;
+    for (let i = 0; i < steps; i++) {
+      const angle = (i * 2 * Math.PI) / steps;
+      points.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) });
+    }
+    return points;
+  }
+
+  if (node.type === "polygon") {
+    const sides = Math.max(3, Math.min(30, node.style.sides ?? 5));
+    const points: Point[] = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = (i * 2 * Math.PI) / sides - Math.PI / 2;
+      points.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) });
+    }
+    return points;
+  }
+
+  if (node.type === "star") {
+    const pointsCount = Math.max(3, Math.min(20, node.style.starPoints ?? 5));
+    const innerRatio = node.style.innerRadius ?? 0.5;
+    const points: Point[] = [];
+    const n = pointsCount * 2;
+    for (let i = 0; i < n; i++) {
+      const angle = (i * Math.PI) / pointsCount - Math.PI / 2;
+      const r = i % 2 === 0 ? 1 : innerRatio;
+      points.push({ x: cx + rx * r * Math.cos(angle), y: cy + ry * r * Math.sin(angle) });
+    }
+    return points;
+  }
+
   return [
     { x, y },
     { x: x + width, y },

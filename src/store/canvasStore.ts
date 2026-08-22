@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { loadCanvasState, saveCanvasState, clearCanvasState } from "../services/editorPersistence";
+import { normalizeEditorState, syncPageNodes, DEFAULT_NEXT_NUMBER } from "../services/editorState";
+import { sanitizeNodeChildren, isValidNodeMap } from "../utils/editorValidation";
 import type {
   NodeId,
   NodesById,
@@ -157,7 +160,7 @@ interface CanvasStoreActions {
   createCurve: (x: number, y: number, width?: number, height?: number) => void;
   createStar: (x: number, y: number, width?: number, height?: number, points?: number) => void;
   createShape3D: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
-  createPathNode: (type: "brush" | "pencil", pathData: string, bounds: Geometry, style?: Partial<Style>) => void;
+  createPathNode: (type: "brush" | "pencil" | "pen", pathData: string, bounds: Geometry, style?: Partial<Style>) => void;
   fillNodeColor: (nodeId: NodeId, color: string) => void;
 }
 
@@ -171,35 +174,42 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5.0;
 const PASTE_OFFSET = 10;
 
-const DEFAULT_NEXT_NUMBER: Record<ElementType, number> = {
-  rectangle: 1,
-  text: 1,
-  image: 1,
-  line: 1,
-  group: 1,
-  polygon: 1,
-  circle: 1,
-  curve: 1,
-  star: 1,
-  shape3d: 1,
-  brush: 1,
-  pencil: 1,
-  pen: 1,
-  component: 1,
-  componentInstance: 1,
-  product: 1,
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function snapshot(state: CanvasStoreState): Snapshot {
   return {
-    nodes: structuredClone(state.nodes),
-    selectedNodeIds: Array.from(state.selectedNodeIds),
+    nodes: { ...state.nodes },
+    selectedNodeIds: Array.from(state.selectedNodeIds).filter((id) => state.nodes[id]),
     nextNumber: { ...state.nextNumber },
   };
+}
+
+function ensureValidSelection(selection: Set<NodeId>, nodes: NodesById): Set<NodeId> {
+  return new Set(Array.from(selection).filter((id) => Boolean(nodes[id])));
+}
+
+function hasSelectedAncestor(nodes: NodesById, nodeId: NodeId, selectedIds: Set<NodeId>): boolean {
+  let parentId = nodes[nodeId]?.parentId ?? null;
+  while (parentId) {
+    if (selectedIds.has(parentId)) return true;
+    parentId = nodes[parentId]?.parentId ?? null;
+  }
+  return false;
+}
+
+function isValidParentRelationship(nodes: NodesById, childId: NodeId, parentId: NodeId | null): boolean {
+  if (parentId === null) return true;
+  const parent = nodes[parentId];
+  if (!parent || parent.type !== "group") return false;
+  if (parentId === childId) return false;
+  let cursor: CanvasNode | undefined = parent;
+  while (cursor?.parentId) {
+    if (cursor.parentId === childId) return false;
+    cursor = nodes[cursor.parentId];
+  }
+  return true;
 }
 
 /** Re-normalize order values for siblings sharing the same parentId */
@@ -276,28 +286,24 @@ let lastNudgeTime = 0;
 // ---------------------------------------------------------------------------
 // Auto-save helpers
 // ---------------------------------------------------------------------------
-const STORAGE_KEY = "canvassite_project";
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function saveToLocalStorage(state: CanvasStoreState) {
-  try {
-    const currentPages = {
+  const safeNodes = sanitizeNodeChildren(isValidNodeMap(state.nodes) ? state.nodes : {});
+  saveCanvasState({
+    pages: {
       ...state.pages,
       [state.activePageId]: {
         ...state.pages[state.activePageId],
-        nodes: state.nodes,
+        nodes: safeNodes,
       },
-    };
-    const data = {
-      pages: currentPages,
-      activePageId: state.activePageId,
-      nodes: state.nodes,
-      nextNumber: state.nextNumber,
-      activeColor: state.activeColor,
-      pageHeight: state.pageHeight,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch { /* storage full — silently fail */ }
+    },
+    activePageId: state.activePageId,
+    nodes: safeNodes,
+    nextNumber: state.nextNumber,
+    activeColor: state.activeColor,
+    pageHeight: state.pageHeight,
+  });
 }
 
 function loadFromLocalStorage(): {
@@ -308,32 +314,18 @@ function loadFromLocalStorage(): {
   activeColor: string;
   pageHeight: Record<import("../types/canvas").BreakpointKey, number>;
 } | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (data && typeof data.nodes === "object") {
-      const defaultNodes = data.nodes as NodesById;
-      const defaultPages: import("../types/canvas").PagesById = data.pages ?? {
-        "page-1": {
-          id: "page-1",
-          name: "Home",
-          slug: "index",
-          nodes: defaultNodes,
-        },
-      };
-      const activeId = data.activePageId && defaultPages[data.activePageId] ? data.activePageId : "page-1";
-      return {
-        pages: defaultPages,
-        activePageId: activeId,
-        nodes: defaultPages[activeId]?.nodes ?? defaultNodes,
-        nextNumber: data.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
-        activeColor: data.activeColor ?? "#3B82F6",
-        pageHeight: data.pageHeight ?? { desktop: 1200, tablet: 1400, mobile: 1600 },
-      };
-    }
-  } catch { /* corrupt data — ignore */ }
-  return null;
+  const saved = loadCanvasState();
+  if (!saved) return null;
+
+  const safeNodes = sanitizeNodeChildren(isValidNodeMap(saved.nodes) ? saved.nodes : {});
+  return {
+    pages: saved.pages,
+    activePageId: saved.activePageId,
+    nodes: safeNodes,
+    nextNumber: saved.nextNumber,
+    activeColor: saved.activeColor,
+    pageHeight: saved.pageHeight,
+  };
 }
 
 function scheduleAutoSave(state: CanvasStoreState) {
@@ -342,17 +334,18 @@ function scheduleAutoSave(state: CanvasStoreState) {
 }
 
 const savedState = loadFromLocalStorage();
+const normalizedSavedState = savedState ? normalizeEditorState(savedState) : null;
 
-const initialPages: import("../types/canvas").PagesById = savedState?.pages ?? {
+const initialPages = normalizedSavedState?.pages ?? {
   "page-1": {
     id: "page-1",
     name: "Home",
     slug: "index",
-    nodes: savedState?.nodes ?? {},
+    nodes: normalizedSavedState?.nodes ?? {},
   },
 };
 
-const initialActivePageId = savedState?.activePageId ?? "page-1";
+const initialActivePageId = normalizedSavedState?.activePageId ?? "page-1";
 
 // ---------------------------------------------------------------------------
 // Store
@@ -361,9 +354,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // ---- Initial state (loaded from localStorage if available) ----
   pages: initialPages,
   activePageId: initialActivePageId,
-  nodes: initialPages[initialActivePageId]?.nodes ?? savedState?.nodes ?? {},
+  nodes: initialPages[initialActivePageId]?.nodes ?? normalizedSavedState?.nodes ?? {},
   selectedNodeIds: new Set(),
-  nextNumber: savedState?.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
+  nextNumber: normalizedSavedState?.nextNumber ?? { ...DEFAULT_NEXT_NUMBER },
   showGrid: true,
   gridSize: 10,
   snapToGrid: true,
@@ -371,12 +364,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   viewport: { panX: 0, panY: 0, zoom: 1 },
   activeTool: "select",
   activeBreakpoint: "desktop",
-  pageHeight: savedState?.pageHeight ?? { desktop: 1200, tablet: 1400, mobile: 1600 },
+  pageHeight: normalizedSavedState?.pageHeight ?? { desktop: 1200, tablet: 1400, mobile: 1600 },
   clipboard: null,
   editingNodeId: null,
   alignmentGuides: [],
   imageUploadHandler: null,
-  activeColor: savedState?.activeColor ?? "#3B82F6",
+  activeColor: normalizedSavedState?.activeColor ?? "#3B82F6",
   mouseCanvasPos: { x: 0, y: 0 },
 
   setActiveColor: (color: string) => set({ activeColor: color }),
@@ -401,18 +394,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const slug = pageName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
     const newPageId = `page-${Date.now()}`;
 
-    const updatedPages = {
-      ...state.pages,
-      [state.activePageId]: {
-        ...state.pages[state.activePageId],
-        nodes: state.nodes,
-      },
-      [newPageId]: {
-        id: newPageId,
-        name: pageName,
-        slug: slug || `page-${pageCount}`,
-        nodes: {},
-      },
+    const updatedPages = syncPageNodes(state.pages, state.activePageId, state.nodes);
+    updatedPages[newPageId] = {
+      id: newPageId,
+      name: pageName,
+      slug: slug || `page-${pageCount}`,
+      nodes: {},
     };
 
     set({
@@ -477,20 +464,29 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const state = get();
     if (pageId === state.activePageId || !state.pages[pageId]) return;
 
-    const updatedPages = {
-      ...state.pages,
-      [state.activePageId]: {
-        ...state.pages[state.activePageId],
-        nodes: state.nodes,
-      },
-    };
+    const updatedPages = syncPageNodes(state.pages, state.activePageId, state.nodes);
+    const nextPageNodes = updatedPages[pageId]?.nodes ?? {};
+    const safePageNodes = sanitizeNodeChildren(isValidNodeMap(nextPageNodes) ? nextPageNodes : {});
 
-    const newNodes = updatedPages[pageId].nodes ?? {};
+    const normalized = normalizeEditorState({
+      pages: {
+        ...updatedPages,
+        [pageId]: {
+          ...updatedPages[pageId],
+          nodes: safePageNodes,
+        },
+      },
+      activePageId: pageId,
+      nodes: safePageNodes,
+      nextNumber: state.nextNumber,
+      activeColor: state.activeColor,
+      pageHeight: state.pageHeight,
+    });
 
     set({
-      pages: updatedPages,
-      activePageId: pageId,
-      nodes: newNodes,
+      pages: normalized.pages,
+      activePageId: normalized.activePageId,
+      nodes: normalized.nodes,
       selectedNodeIds: new Set(),
       editingNodeId: null,
       past: [],
@@ -499,12 +495,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   setPages: (pages, activePageId) => {
-    const targetPageId = activePageId && pages[activePageId] ? activePageId : Object.keys(pages)[0] || "page-1";
-    const targetNodes = pages[targetPageId]?.nodes ?? {};
+    const normalized = normalizeEditorState({ pages, activePageId });
     set({
-      pages,
-      activePageId: targetPageId,
-      nodes: targetNodes,
+      pages: normalized.pages,
+      activePageId: normalized.activePageId,
+      nodes: normalized.nodes,
       selectedNodeIds: new Set(),
       editingNodeId: null,
       past: [],
@@ -1099,8 +1094,13 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       return;
     }
 
+    if (!state.nodes[id]) {
+      set({ selectedNodeIds: new Set(), editingNodeId: null });
+      return;
+    }
+
     if (multiSelect) {
-      const newSelection = new Set(state.selectedNodeIds);
+      const newSelection = ensureValidSelection(new Set(state.selectedNodeIds), state.nodes);
       if (newSelection.has(id)) {
         newSelection.delete(id);
       } else {
@@ -1113,7 +1113,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   selectMultipleNodes: (ids) => {
-    set({ selectedNodeIds: new Set(ids) });
+    const state = get();
+    const validIds = ids.filter((id) => Boolean(state.nodes[id]));
+    set({ selectedNodeIds: new Set(validIds) });
   },
 
   setEditingNode: (id) => {
@@ -1295,15 +1297,21 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // -----------------------------------------------------------------------
   groupSelected: () => {
     const state = get();
-    if (state.selectedNodeIds.size < 2) return;
+    const validSelection = ensureValidSelection(state.selectedNodeIds, state.nodes);
+    if (validSelection.size < 2) return;
 
-    const selectedNodes = Array.from(state.selectedNodeIds)
+    const selectedNodes = Array.from(validSelection)
       .map((id) => state.nodes[id])
       .filter((n): n is CanvasNode => n !== undefined);
 
-    if (selectedNodes.length < 2) return;
+    if (selectedNodes.some((node) => node.type === "group")) return;
 
-    // Check parentId consistency — group items under their common parent if possible, else top-level
+    const parentIds = new Set(selectedNodes.map((n) => n.parentId));
+    if (parentIds.size > 1) return;
+
+    const hasNestedSelection = selectedNodes.some((node) => hasSelectedAncestor(state.nodes, node.id, validSelection));
+    if (hasNestedSelection) return;
+
     const commonParentId = selectedNodes.every((n) => n.parentId === selectedNodes[0].parentId)
       ? selectedNodes[0].parentId
       : null;
@@ -1313,11 +1321,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const groupNum = state.nextNumber.group;
 
     const snap = snapshot(state);
-    const newNodes = { ...state.nodes };
-
+    const newNodes = sanitizeNodeChildren({ ...state.nodes });
     const childrenIds = selectedNodes.map((n) => n.id);
 
-    // Create group node
     const groupNode: CanvasNode = {
       id: groupId,
       parentId: commonParentId,
@@ -1329,12 +1335,19 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       children: childrenIds,
     };
 
+    const groupParent = commonParentId ? newNodes[commonParentId] : null;
+    if (groupParent && groupParent.type !== "group" && commonParentId !== null) {
+      return;
+    }
+
     newNodes[groupId] = groupNode;
 
-    // Update children parentId
     childrenIds.forEach((childId) => {
+      const child = newNodes[childId];
+      if (!child) return;
+      if (!isValidParentRelationship(newNodes, childId, groupId)) return;
       newNodes[childId] = {
-        ...newNodes[childId],
+        ...child,
         parentId: groupId,
       };
     });
@@ -1343,7 +1356,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     normalizeOrders(newNodes, groupId);
 
     set({
-      nodes: newNodes,
+      nodes: sanitizeNodeChildren(newNodes),
       selectedNodeIds: new Set([groupId]),
       nextNumber: { ...state.nextNumber, group: groupNum + 1 },
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
@@ -1371,11 +1384,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
       groupNode.children.forEach((childId) => {
         if (newNodes[childId]) {
-          newNodes[childId] = {
-            ...newNodes[childId],
-            parentId: parentId,
-          };
-          newSelection.add(childId);
+          const nextChild = { ...newNodes[childId], parentId };
+          if (isValidParentRelationship(newNodes, childId, parentId)) {
+            newNodes[childId] = nextChild;
+            newSelection.add(childId);
+          }
         }
       });
 
@@ -1385,7 +1398,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
     set({
       nodes: newNodes,
-      selectedNodeIds: newSelection,
+      selectedNodeIds: ensureValidSelection(newSelection, newNodes),
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });
@@ -1550,9 +1563,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   selectAll: () => {
     const state = get();
     const topLevelIds = Object.values(state.nodes)
-      .filter(n => n.parentId === null)
-      .map(n => n.id);
-    set({ selectedNodeIds: new Set(topLevelIds) });
+      .filter((n) => n.parentId === null)
+      .map((n) => n.id);
+    set({ selectedNodeIds: ensureValidSelection(new Set(topLevelIds), state.nodes) });
   },
 
   // -----------------------------------------------------------------------
@@ -1569,7 +1582,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    clearCanvasState();
   },
 
   // -----------------------------------------------------------------------
@@ -1857,20 +1870,21 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const state = get();
     const id = crypto.randomUUID();
     const isPencil = type === "pencil";
+    const isPen = type === "pen";
     const num = state.nextNumber[type] ?? 1;
     const node: CanvasNode = {
       id,
       parentId: null,
       type,
-      name: `${isPencil ? "Pencil" : "Brush"} ${num}`,
+      name: `${isPen ? "Pen Vector" : isPencil ? "Pencil" : "Brush"} ${num}`,
       order: maxOrder(state.nodes) + 1,
       geometry: bounds,
       pathData,
       style: {
         fill: "transparent",
         opacity: 1,
-        border: { color: customStyle?.border?.color ?? state.activeColor, width: isPencil ? 2 : 12, style: "solid" },
-        brushSize: isPencil ? 2 : 12,
+        border: { color: customStyle?.border?.color ?? state.activeColor, width: isPencil || isPen ? 2 : 12, style: "solid" },
+        brushSize: isPencil || isPen ? 2 : 12,
         ...customStyle,
       },
     };
