@@ -16,6 +16,10 @@ export const BreakpointFrame: React.FC<Props> = React.memo(({ activeBreakpoint, 
   const frameWidth = BREAKPOINT_WIDTHS[activeBreakpoint] ?? 1200;
   const pageHeights = useCanvasStore((s) => s.pageHeight);
   const frameHeight = pageHeights[activeBreakpoint] ?? 1200;
+  const activePageId = useCanvasStore((s) => s.activePageId);
+  const pages = useCanvasStore((s) => s.pages);
+  const activePage = pages[activePageId];
+  const pageBg = activePage?.backgroundColor || "transparent";
 
   const strokeWidth = 1.5 / zoom;
   const dashArray = `${6 / zoom} ${4 / zoom}`;
@@ -32,6 +36,18 @@ export const BreakpointFrame: React.FC<Props> = React.memo(({ activeBreakpoint, 
 
   return (
     <g className="breakpoint-frame">
+      {/* Website Page Background Fill */}
+      {pageBg !== "transparent" && (
+        <rect
+          x={frameX}
+          y={frameY}
+          width={frameWidth}
+          height={frameHeight}
+          fill={pageBg}
+          pointerEvents="none"
+        />
+      )}
+
       {/* Outer Left Backdrop */}
       <rect
         x={frameX - 5000}

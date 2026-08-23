@@ -1,5 +1,6 @@
 import { useRef, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
+import { useInteractionStore } from "../store/interactionStore";
 import { computeSnapping } from "../utils/snapping";
 import { getEffectiveNode, getEffectiveNodesMap } from "../utils/breakpoint";
 import type { ResizeHandle, LineEndpointHandle } from "../types/canvas";
@@ -128,6 +129,40 @@ export function useCanvasPointer(
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const [canvasX, canvasY] = screenToCanvas(screenX, screenY);
+
+      // Interactive Preview Mode Click Execution
+      if (store.isPreviewMode) {
+        const targetEl = target as unknown as HTMLElement;
+        const closestNodeEl = targetEl.closest?.("[data-node-id]");
+        const hitNodeId = closestNodeEl?.getAttribute("data-node-id") ?? target.getAttribute("data-node-id");
+
+        if (hitNodeId && store.nodes[hitNodeId]) {
+          const interactions = useInteractionStore.getState().interactions[hitNodeId] || store.nodes[hitNodeId].interactions;
+          const click = interactions?.click;
+
+          if (click && click.type && click.type !== "none") {
+            if (click.type === "navigateTo" && click.target) {
+              store.setActivePage(click.target);
+            } else if (click.type === "openUrl" && click.target) {
+              window.open(click.target, click.openInNewTab ? "_blank" : "_self");
+            } else if (click.type === "scrollTo" && click.target) {
+              const targetNode = store.nodes[click.target];
+              if (targetNode) {
+                const targetY = targetNode.geometry.y;
+                store.pan(0, -targetY * store.viewport.zoom - store.viewport.panY + 100);
+              }
+            } else if (click.type === "toggleVisibility" && click.target) {
+              store.toggleNodeVisibility(click.target);
+            }
+            return;
+          }
+        }
+
+        // Allow panning in preview mode if background clicked
+        svg.setPointerCapture(e.pointerId);
+        modeRef.current = { type: "pan", startScreenX: screenX, startScreenY: screenY };
+        return;
+      }
 
       // 0. Check Element Double Click BEFORE setting pointer capture
       const targetEl = target as unknown as HTMLElement;

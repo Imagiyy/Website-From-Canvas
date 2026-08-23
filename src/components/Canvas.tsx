@@ -6,6 +6,7 @@ import SelectionOverlay from "./SelectionOverlay";
 import AlignmentGuides from "./AlignmentGuides";
 import BreakpointFrame from "./BreakpointFrame";
 import Rulers from "./Rulers";
+import { CartDrawer } from "./panels/CartDrawer";
 import { useKeyboard } from "../hooks/useKeyboard";
 import { getEffectiveNodesMap } from "../utils/breakpoint";
 import "./Canvas.css";
@@ -65,6 +66,7 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
   const showRulers = useCanvasStore((s) => s.showRulers);
   const mouseCanvasPos = useCanvasStore((s) => s.mouseCanvasPos);
   const activeColor = useCanvasStore((s) => s.activeColor);
+  const isPreviewMode = useCanvasStore((s) => s.isPreviewMode);
 
   // Resolve effective nodes for active breakpoint
   const effectiveNodes = getEffectiveNodesMap(nodes, activeBreakpoint);
@@ -90,7 +92,7 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
       }, 20);
       return () => clearTimeout(timer);
     }
-  }, [editingNodeId, isEditingText]);
+  }, [editingNodeId, isEditingText, storeEditingText]);
 
   React.useEffect(() => {
     setImageUploadHandler(() => {
@@ -183,6 +185,8 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
   const topLevelNodes = Object.values(effectiveNodes)
     .filter((n) => n.parentId === null)
     .sort((a, b) => a.order - b.order);
+  // Cache bounding rect once per render to avoid N layout reflows
+  const svgRect = svgRef.current?.getBoundingClientRect() ?? null;
 
   const preview = drawPreviewRef.current;
 
@@ -274,7 +278,7 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
                 isNodeInViewport(
                   node,
                   viewport,
-                  svgRef.current?.getBoundingClientRect() ?? null,
+                  svgRect,
                   selectedNodeIds,
                   editingNodeId
                 )
@@ -373,22 +377,26 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
             />
           )}
 
-          {/* Selection overlay */}
-          <SelectionOverlay
-            selectedNodeIds={selectedNodeIds}
-            nodes={effectiveNodes}
-            zoom={viewport.zoom}
-          />
+          {/* Selection overlay (hidden in preview mode) */}
+          {!isPreviewMode && (
+            <SelectionOverlay
+              selectedNodeIds={selectedNodeIds}
+              nodes={effectiveNodes}
+              zoom={viewport.zoom}
+            />
+          )}
 
-          {/* Smart Alignment Guides */}
-          <AlignmentGuides
-            guides={alignmentGuides}
-            zoom={viewport.zoom}
-          />
+          {/* Smart Alignment Guides (hidden in preview mode) */}
+          {!isPreviewMode && (
+            <AlignmentGuides
+              guides={alignmentGuides}
+              zoom={viewport.zoom}
+            />
+          )}
         </g>
       </svg>
 
-      {isEditingText && editingNode && (
+      {isEditingText && editingNode && !isPreviewMode && (
         <textarea
           ref={editingTextareaRef}
           value={overlayText}
@@ -433,26 +441,85 @@ export const Canvas: React.FC<Props> = ({ onContextMenu }) => {
             letterSpacing: editingNode.style.typography?.letterSpacing ? `${editingNode.style.typography.letterSpacing * viewport.zoom}px` : undefined,
             textTransform: editingNode.style.typography?.textTransform ?? "none",
             textDecoration: editingNode.style.typography?.textDecoration ?? "none",
-            background: "rgba(15, 15, 26, 0.96)",
+            background:
+              editingNode.style.gradient
+                ? `linear-gradient(${editingNode.style.gradient.angle ?? 135}deg, ${editingNode.style.gradient.startColor}, ${editingNode.style.gradient.endColor})`
+                : editingNode.style.fill && editingNode.style.fill !== "transparent"
+                ? editingNode.style.fill
+                : "rgba(15, 15, 26, 0.96)",
             outline: "2px solid #2563EB",
             outlineOffset: "2px",
-            borderRadius: "3px",
-            border: "none",
+            borderRadius: editingNode.style.cornerRadius ? `${editingNode.style.cornerRadius * viewport.zoom}px` : "3px",
+            border:
+              editingNode.style.border && editingNode.style.border.width > 0
+                ? `${editingNode.style.border.width * viewport.zoom}px ${editingNode.style.border.style ?? "solid"} ${editingNode.style.border.color}`
+                : "none",
             resize: "none",
-            padding: `${2 * viewport.zoom}px ${4 * viewport.zoom}px`,
+            padding: `${4 * viewport.zoom}px ${8 * viewport.zoom}px`,
             boxSizing: "border-box",
             zIndex: 1000,
           }}
         />
       )}
-      {showRulers && (
+      {showRulers && !isPreviewMode && (
         <Rulers
           viewport={viewport}
           mouseCanvasPos={mouseCanvasPos}
           visible={showRulers}
         />
       )}
+
+      {/* Cart Drawer Modal */}
+      <CartDrawer />
+
+      {/* Floating Toast Notification */}
+      <ToastNotification />
     </>
+  );
+};
+
+const ToastNotification: React.FC = () => {
+  const [toast, setToast] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleToast = (e: Event) => {
+      const customEvt = e as CustomEvent<{ message: string }>;
+      if (customEvt.detail?.message) {
+        setToast(customEvt.detail.message);
+        setTimeout(() => setToast(null), 3000);
+      }
+    };
+
+    window.addEventListener("canvassite:toast", handleToast);
+    return () => window.removeEventListener("canvassite:toast", handleToast);
+  }, []);
+
+  if (!toast) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: 40,
+        right: 40,
+        background: "rgba(16, 185, 129, 0.95)",
+        backdropFilter: "blur(8px)",
+        color: "#ffffff",
+        padding: "12px 20px",
+        borderRadius: 12,
+        fontWeight: 600,
+        fontSize: 13,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+        zIndex: 3000,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        animation: "panelSlideUp 0.25s ease",
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>{toast}</span>
+    </div>
   );
 };
 

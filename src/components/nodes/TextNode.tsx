@@ -26,6 +26,17 @@ export const TextNode: React.FC<Props> = React.memo(({ node, isEditing = false }
     lineHeight: 1.4,
   };
 
+  const backgroundStyle = style.gradient
+    ? `linear-gradient(${style.gradient.angle ?? 135}deg, ${style.gradient.startColor}, ${style.gradient.endColor})`
+    : style.fill && style.fill !== "transparent"
+    ? style.fill
+    : undefined;
+
+  const borderStyle =
+    style.border && style.border.width > 0
+      ? `${style.border.width}px ${style.border.style ?? "solid"} ${style.border.color ?? "#2563EB"}`
+      : undefined;
+
   return (
     <g transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
       <foreignObject
@@ -58,12 +69,16 @@ export const TextNode: React.FC<Props> = React.memo(({ node, isEditing = false }
             letterSpacing: typo.letterSpacing ? `${typo.letterSpacing}px` : undefined,
             textTransform: typo.textTransform ?? "none",
             textDecoration: typo.textDecoration ?? "none",
+            background: backgroundStyle,
+            backgroundColor: !style.gradient && style.fill && style.fill !== "transparent" ? style.fill : undefined,
+            borderRadius: style.cornerRadius ? `${style.cornerRadius}px` : undefined,
+            border: borderStyle,
             opacity: isEditing ? 0 : style.opacity,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             userSelect: "none",
             boxSizing: "border-box",
-            padding: "2px 4px",
+            padding: "4px 8px",
             filter: style.shadow
               ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
               : undefined,

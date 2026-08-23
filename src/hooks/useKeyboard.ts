@@ -142,8 +142,15 @@ export function useKeyboard(fileInputRef?: React.RefObject<HTMLInputElement | nu
         if (key === "i") {
           store.setActiveTool("image");
           if (fileInputRef?.current) {
-            fileInputRef.current.dataset.clickX = "100";
-            fileInputRef.current.dataset.clickY = "100";
+            // Calculate viewport center in canvas coordinates
+            const { panX, panY, zoom } = store.viewport;
+            const svgEl = document.querySelector('.canvas') as SVGSVGElement | null;
+            const w = svgEl?.clientWidth ?? 800;
+            const h = svgEl?.clientHeight ?? 600;
+            const centerX = Math.round((w / 2 - panX) / zoom);
+            const centerY = Math.round((h / 2 - panY) / zoom);
+            fileInputRef.current.dataset.clickX = String(centerX);
+            fileInputRef.current.dataset.clickY = String(centerY);
             fileInputRef.current.click();
           }
           return;

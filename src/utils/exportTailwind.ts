@@ -1,5 +1,13 @@
-// Export to Tailwind CSS HTML — 4.1
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
+import { useInteractionStore } from "../store/interactionStore";
+
+function getNodeWithInteractions(node: CanvasNode): CanvasNode {
+  const storeInteractions = useInteractionStore.getState().interactions[node.id];
+  if (storeInteractions) {
+    return { ...node, interactions: { ...node.interactions, ...storeInteractions } };
+  }
+  return node;
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -132,23 +140,28 @@ function nodeToTailwindClasses(node: CanvasNode, nodes?: NodesById): string {
   return classes.join(" ");
 }
 
-function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "    "): string {
-  const classes = nodeToTailwindClasses(node);
+function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = "    "): string {
+  const node = getNodeWithInteractions(nodeRaw);
+  const classes = nodeToTailwindClasses(node, nodes);
+  let elementHTML = "";
 
   switch (node.type) {
     case "rectangle":
-      return `${indent}<div class="${classes}"></div>`;
+      elementHTML = `${indent}<div class="${classes}"></div>`;
+      break;
 
     case "text": {
       const text = node.content?.kind === "text" ? node.content.text : "Text";
-      return `${indent}<div class="${classes}">\n${indent}  <p>${escapeHtml(text)}</p>\n${indent}</div>`;
+      elementHTML = `${indent}<div class="${classes}">\n${indent}  <p>${escapeHtml(text)}</p>\n${indent}</div>`;
+      break;
     }
 
     case "image": {
       const src = node.content?.kind === "image" ? node.content.assetUrl : "";
       const fit = node.content?.kind === "image" ? node.content.fit : "cover";
       const fitClass = fit === "contain" ? "object-contain" : fit === "fill" ? "object-fill" : "object-cover";
-      return `${indent}<img class="${classes} ${fitClass}" src="${src}" alt="${escapeHtml(node.name)}" />`;
+      elementHTML = `${indent}<img class="${classes} ${fitClass}" src="${src}" alt="${escapeHtml(node.name)}" />`;
+      break;
     }
 
     case "group": {
@@ -158,12 +171,27 @@ function renderNodeHTML(node: CanvasNode, nodes: NodesById, indent: string = "  
         .sort((a, b) => a.order - b.order)
         .map((c) => renderNodeHTML(c, nodes, indent + "  "))
         .join("\n");
-      return `${indent}<div class="${classes}">\n${children}\n${indent}</div>`;
+      elementHTML = `${indent}<div class="${classes}">\n${children}\n${indent}</div>`;
+      break;
     }
 
     default:
-      return `${indent}<div class="${classes}"></div>`;
+      elementHTML = `${indent}<div class="${classes}"></div>`;
+      break;
   }
+
+  const click = node.interactions?.click;
+  if (click && click.type && click.type !== "none") {
+    if (click.type === "navigateTo" && click.target) {
+      return `${indent}<a href="${click.target}.html" class="block text-current no-underline">\n${elementHTML}\n${indent}</a>`;
+    }
+    if (click.type === "openUrl" && click.target) {
+      const targetAttr = click.openInNewTab ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return `${indent}<a href="${click.target}"${targetAttr} class="block text-current no-underline">\n${elementHTML}\n${indent}</a>`;
+    }
+  }
+
+  return elementHTML;
 }
 
 export interface ExportedTailwindFile {

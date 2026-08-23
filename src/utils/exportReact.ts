@@ -1,5 +1,5 @@
-// Export to React Components — 4.1
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
+import { useInteractionStore } from "../store/interactionStore";
 
 function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Component";
@@ -7,6 +7,14 @@ function safeComponentName(name: string): string {
 
 function indent(level: number): string {
   return "  ".repeat(level);
+}
+
+function getNodeWithInteractions(node: CanvasNode): CanvasNode {
+  const storeInteractions = useInteractionStore.getState().interactions[node.id];
+  if (storeInteractions) {
+    return { ...node, interactions: { ...node.interactions, ...storeInteractions } };
+  }
+  return node;
 }
 
 function styleToCSSObject(node: CanvasNode, nodes?: NodesById): string {
@@ -53,23 +61,36 @@ function styleToCSSObject(node: CanvasNode, nodes?: NodesById): string {
   return `{ ${rules.join(", ")} }`;
 }
 
-function renderNodeJSX(node: CanvasNode, nodes: NodesById, level: number): string {
+function renderNodeJSX(nodeRaw: CanvasNode, nodes: NodesById, level: number): string {
+  const node = getNodeWithInteractions(nodeRaw);
   const i = indent(level);
-  const styleProp = `style={${styleToCSSObject(node)}}`;
+  const styleProp = `style={${styleToCSSObject(node, nodes)}}`;
+
+  let clickProp = "";
+  const click = node.interactions?.click;
+  if (click && click.type && click.type !== "none") {
+    if (click.type === "openUrl" && click.target) {
+      clickProp = ` onClick={() => window.open('${click.target}', '${click.openInNewTab ? "_blank" : "_self"}')}`;
+    } else if (click.type === "navigateTo" && click.target) {
+      clickProp = ` onClick={() => onNavigate ? onNavigate('${click.target}') : window.location.href = '${click.target}.html'}`;
+    } else if (click.type === "scrollTo" && click.target) {
+      clickProp = ` onClick={() => document.getElementById('${click.target}')?.scrollIntoView({ behavior: 'smooth' })}`;
+    }
+  }
 
   switch (node.type) {
     case "rectangle":
-      return `${i}<div ${styleProp} />`;
+      return `${i}<div id="${node.id}" ${styleProp}${clickProp} />`;
 
     case "text": {
       const text = node.content?.kind === "text" ? node.content.text : "Text";
-      return `${i}<div ${styleProp}>\n${i}  <p>${text}</p>\n${i}</div>`;
+      return `${i}<div id="${node.id}" ${styleProp}${clickProp}>\n${i}  <p>${text}</p>\n${i}</div>`;
     }
 
     case "image": {
       const src = node.content?.kind === "image" ? node.content.assetUrl : "";
       const fit = node.content?.kind === "image" ? node.content.fit : "cover";
-      return `${i}<div ${styleProp}>\n${i}  <img src="${src}" alt="${node.name}" style={{ objectFit: '${fit}', width: '100%', height: '100%' }} />\n${i}</div>`;
+      return `${i}<div id="${node.id}" ${styleProp}${clickProp}>\n${i}  <img src="${src}" alt="${node.name}" style={{ objectFit: '${fit}', width: '100%', height: '100%' }} />\n${i}</div>`;
     }
 
     case "group": {
@@ -79,11 +100,11 @@ function renderNodeJSX(node: CanvasNode, nodes: NodesById, level: number): strin
         .sort((a, b) => a.order - b.order)
         .map((c) => renderNodeJSX(c, nodes, level + 1))
         .join("\n");
-      return `${i}<div ${styleProp}>\n${children}\n${i}</div>`;
+      return `${i}<div id="${node.id}" ${styleProp}${clickProp}>\n${children}\n${i}</div>`;
     }
 
     default:
-      return `${i}<div ${styleProp} />`;
+      return `${i}<div id="${node.id}" ${styleProp}${clickProp} />`;
   }
 }
 

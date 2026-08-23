@@ -113,21 +113,100 @@ export const PropertyPanel: React.FC = () => {
     .map((id) => (nodes[id] ? getEffectiveNode(nodes[id], activeBreakpoint) : undefined))
     .filter((n): n is CanvasNode => n !== undefined);
 
-  // Case 1: Empty selection
+  const activePageId = useCanvasStore((s) => s.activePageId);
+  const pages = useCanvasStore((s) => s.pages);
+  const setPageBackgroundColor = useCanvasStore((s) => s.setPageBackgroundColor);
+  const activePage = pages[activePageId];
+  const pageBgColor = activePage?.backgroundColor || "transparent";
+
+  // Case 1: Empty selection — Show Page & Full Canvas Background Settings
   if (selectedList.length === 0) {
+    const pageSwatches = [
+      { name: "Transparent", value: "transparent" },
+      { name: "Dark Navy", value: "#0F172A" },
+      { name: "Midnight", value: "#0B0F19" },
+      { name: "Obsidian", value: "#121218" },
+      { name: "Clean White", value: "#FFFFFF" },
+      { name: "Soft Slate", value: "#F8FAFC" },
+      { name: "Indigo", value: "#4F46E5" },
+      { name: "Cyan", value: "#06B6D4" },
+      { name: "Emerald", value: "#10B981" },
+      { name: "Amber", value: "#F59E0B" },
+      { name: "Rose", value: "#F43F5E" },
+    ];
+
     return (
       <div className="property-panel">
         <div className="property-panel__header">
-          <span>Inspector</span>
+          <span>Page & Canvas Settings</span>
+          <span className="property-panel__badge">{activePage?.name || "Page"}</span>
         </div>
-        <div className="property-panel__empty">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.4">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-          </svg>
-          <p>No element selected</p>
-          <span>Select an item on the canvas to configure its properties.</span>
+        <div className="property-panel__content">
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Full Page Background Color</span>
+            
+            <div className="property-panel__row" style={{ marginTop: 8 }}>
+              <label>Background Mode</label>
+              <div className="property-panel__btn-group">
+                <button
+                  className={`property-panel__mode-btn ${pageBgColor === "transparent" ? "property-panel__mode-btn--active" : ""}`}
+                  onClick={() => setPageBackgroundColor("transparent")}
+                >
+                  Transparent
+                </button>
+                <button
+                  className={`property-panel__mode-btn ${pageBgColor !== "transparent" ? "property-panel__mode-btn--active" : ""}`}
+                  onClick={() => setPageBackgroundColor(pageBgColor === "transparent" ? "#0F172A" : pageBgColor)}
+                >
+                  Solid Fill
+                </button>
+              </div>
+            </div>
+
+            <div className="property-panel__row">
+              <label>Color Picker</label>
+              <div className="property-panel__color-wrapper">
+                <input
+                  type="color"
+                  value={pageBgColor === "transparent" ? "#0F172A" : pageBgColor}
+                  onChange={(e) => setPageBackgroundColor(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="property-panel__hex-input"
+                  value={pageBgColor}
+                  onChange={(e) => setPageBackgroundColor(e.target.value)}
+                  placeholder="transparent or #hex"
+                />
+              </div>
+            </div>
+
+            {/* Quick Swatches */}
+            <div className="property-panel__swatches" style={{ marginTop: 8 }}>
+              {pageSwatches.map((swatch) => (
+                <button
+                  key={swatch.value}
+                  className={`property-panel__swatch ${pageBgColor === swatch.value ? "property-panel__swatch--active" : ""}`}
+                  style={{
+                    background: swatch.value === "transparent" ? "#16162A" : swatch.value,
+                    border: swatch.value === "transparent" ? "1px dashed #5A5A78" : "none",
+                  }}
+                  title={swatch.name}
+                  onClick={() => setPageBackgroundColor(swatch.value)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="property-panel__empty" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 16 }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.4">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <p>Select any element on canvas</p>
+            <span>Click any node to customize its individual size, text, borders, and effects.</span>
+          </div>
         </div>
       </div>
     );
@@ -298,10 +377,18 @@ export const PropertyPanel: React.FC = () => {
   };
 
   const handleBorderChange = (partialBorder: Partial<NonNullable<Style["border"]>>) => {
+    const currentWidth = node.style.border?.width ?? (node.type === "line" || node.type === "curve" ? 2 : 0);
+    const newWidth =
+      partialBorder.width !== undefined
+        ? Math.max(0, partialBorder.width)
+        : currentWidth === 0 && partialBorder.color
+        ? 2
+        : Math.max(1, currentWidth);
+
     updateNodeStyle(node.id, {
       border: {
         color: node.style.border?.color ?? "#2563EB",
-        width: node.style.border?.width ?? 1,
+        width: newWidth,
         style: node.style.border?.style ?? "solid",
         ...partialBorder,
       },
@@ -594,7 +681,7 @@ export const PropertyPanel: React.FC = () => {
               </div>
             </div>
 
-            {(node.type === "rectangle" || node.type === "image") && (
+            {(node.type === "rectangle" || node.type === "image" || node.type === "text") && (
               <div className="property-panel__row">
                 <label>Corner Radius</label>
                 <input
@@ -1049,7 +1136,11 @@ export const PropertyPanel: React.FC = () => {
                   value={style.border?.color ?? style.fill ?? "#3B82F6"}
                   onChange={(e) =>
                     updateNodeStyle(node.id, {
-                      border: { ...(style.border ?? { width: 2, style: "solid" }), color: e.target.value },
+                      border: {
+                        color: e.target.value,
+                        width: Math.max(1, style.border?.width ?? 2),
+                        style: style.border?.style ?? "solid",
+                      },
                     })
                   }
                 />
@@ -1059,7 +1150,11 @@ export const PropertyPanel: React.FC = () => {
                   value={style.border?.color ?? style.fill ?? "#3B82F6"}
                   onChange={(e) =>
                     updateNodeStyle(node.id, {
-                      border: { ...(style.border ?? { width: 2, style: "solid" }), color: e.target.value },
+                      border: {
+                        color: e.target.value,
+                        width: Math.max(1, style.border?.width ?? 2),
+                        style: style.border?.style ?? "solid",
+                      },
                     })
                   }
                 />

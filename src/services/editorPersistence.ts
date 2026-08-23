@@ -28,6 +28,68 @@ const DEFAULT_NEXT_NUMBER: Record<ElementType, number> = {
   component: 1,
   componentInstance: 1,
   product: 1,
+  formInput: 1,
+  formSelect: 1,
+  formCheckbox: 1,
+  formRadio: 1,
+  formSlider: 1,
+  formDatePicker: 1,
+  formColorPicker: 1,
+  formFileInput: 1,
+  formRating: 1,
+  formSignature: 1,
+  formMap: 1,
+  formSegmented: 1,
+  formRichText: 1,
+  formCodeEditor: 1,
+  formOtpPin: 1,
+  formCreditCard: 1,
+  formTagInput: 1,
+  formDualSlider: 1,
+  formVoiceRecorder: 1,
+  formAvatarUpload: 1,
+  formEmojiPicker: 1,
+  formStepper: 1,
+  formToggleGroup: 1,
+  formAccordion: 1,
+  formCaptcha: 1,
+  formGradientPicker: 1,
+  formCurrency: 1,
+  formTimeRange: 1,
+  navHeader: 1,
+  navSidebar: 1,
+  navBreadcrumb: 1,
+  navPagination: 1,
+  navTabs: 1,
+  navToc: 1,
+  dataCard: 1,
+  dataTable: 1,
+  dataList: 1,
+  dataBadge: 1,
+  dataAccordion: 1,
+  dataTooltip: 1,
+  feedbackModal: 1,
+  feedbackToast: 1,
+  feedbackAlert: 1,
+  feedbackProgress: 1,
+  feedbackSkeleton: 1,
+  feedbackEmptyState: 1,
+  layoutContainer: 1,
+  layoutCarousel: 1,
+  mediaPlayer: 1,
+  layoutDivider: 1,
+  actionButton: 1,
+  actionMenu: 1,
+  sectionHero: 1,
+  sectionPricing: 1,
+  sectionTestimonials: 1,
+  sectionTeam: 1,
+  sectionFeatures: 1,
+  sectionCTA: 1,
+  sectionFooter: 1,
+  embedCode: 1,
+  embedIframe: 1,
+  iconElement: 1,
 };
 
 const DEFAULT_PAGE_HEIGHTS: Record<BreakpointKey, number> = {
@@ -120,8 +182,14 @@ export function saveCanvasState(state: PersistedCanvasState): void {
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // storage failure is non-fatal
+  } catch (err) {
+    console.warn("[CanvasSite] Failed to save to localStorage — data may be too large:", err);
+    // Dispatch a custom event that UI can listen to for user notification
+    try {
+      window.dispatchEvent(new CustomEvent("canvassite:storage-error", { detail: { error: err } }));
+    } catch {
+      // ignore dispatch failures in non-browser environments
+    }
   }
 }
 

@@ -1,8 +1,17 @@
 // Export to Next.js Pages — 4.1
 import type { NodesById, CanvasNode, PagesById, PageSEO } from "../types/canvas";
+import { useInteractionStore } from "../store/interactionStore";
 
 function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Page";
+}
+
+function getNodeWithInteractions(node: CanvasNode): CanvasNode {
+  const storeInteractions = useInteractionStore.getState().interactions[node.id];
+  if (storeInteractions) {
+    return { ...node, interactions: { ...node.interactions, ...storeInteractions } };
+  }
+  return node;
 }
 
 function styleToCSS(node: CanvasNode, nodes?: NodesById): string {
@@ -57,17 +66,21 @@ function safeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "");
 }
 
-function renderNodeJSX(node: CanvasNode, nodes: NodesById, indent: string = "        "): string {
+function renderNodeJSX(nodeRaw: CanvasNode, nodes: NodesById, indent: string = "        "): string {
+  const node = getNodeWithInteractions(nodeRaw);
   const className = `node_${safeId(node.id).slice(0, 8)}`;
+  let elementJSX = "";
 
   switch (node.type) {
     case "text": {
       const text = node.content?.kind === "text" ? node.content.text : "Text";
-      return `${indent}<div className={styles.${className}}>\n${indent}  <p>${text}</p>\n${indent}</div>`;
+      elementJSX = `${indent}<div className={styles.${className}}>\n${indent}  <p>${text}</p>\n${indent}</div>`;
+      break;
     }
     case "image": {
       const src = node.content?.kind === "image" ? node.content.assetUrl : "/placeholder.png";
-      return `${indent}<div className={styles.${className}}>\n${indent}  <img src="${src}" alt="${node.name}" fill style={{ objectFit: 'cover' }} />\n${indent}</div>`;
+      elementJSX = `${indent}<div className={styles.${className}}>\n${indent}  <img src="${src}" alt="${node.name}" style={{ objectFit: 'cover', width: '100%', height: '100%' }} />\n${indent}</div>`;
+      break;
     }
     case "group": {
       const children = (node.children || [])
@@ -76,11 +89,26 @@ function renderNodeJSX(node: CanvasNode, nodes: NodesById, indent: string = "   
         .sort((a, b) => a.order - b.order)
         .map((c) => renderNodeJSX(c, nodes, indent + "  "))
         .join("\n");
-      return `${indent}<div className={styles.${className}}>\n${children}\n${indent}</div>`;
+      elementJSX = `${indent}<div className={styles.${className}}>\n${children}\n${indent}</div>`;
+      break;
     }
     default:
-      return `${indent}<div className={styles.${className}} />`;
+      elementJSX = `${indent}<div className={styles.${className}} />`;
+      break;
   }
+
+  const click = node.interactions?.click;
+  if (click && click.type && click.type !== "none") {
+    if (click.type === "navigateTo" && click.target) {
+      return `${indent}<Link href="/${click.target}" style={{ display: 'block', textDecoration: 'none' }}>\n${elementJSX}\n${indent}</Link>`;
+    }
+    if (click.type === "openUrl" && click.target) {
+      const targetAttr = click.openInNewTab ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return `${indent}<a href="${click.target}"${targetAttr} style={{ display: 'block', textDecoration: 'none' }}>\n${elementJSX}\n${indent}</a>`;
+    }
+  }
+
+  return elementJSX;
 }
 
 export interface ExportedNextFile {
@@ -186,7 +214,8 @@ export const metadata = {
 
     files.push({
       filename: `${folder}/page.tsx`,
-      content: `import styles from './${componentName}.module.css';
+      content: `import Link from 'next/link';
+import styles from './${componentName}.module.css';
 ${metadataExport}
 export default function ${componentName}Page() {
   return (

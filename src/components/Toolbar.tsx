@@ -1,6 +1,7 @@
 import React from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import { useAuthStore } from "../store/authStore";
+import { useEcommerceStore } from "../store/ecommerceStore";
 import { getEnabledFeatures } from "../config/productScope";
 import CollaborationBar from "./panels/CollaborationBar";
 import "./Toolbar.css";
@@ -9,6 +10,12 @@ interface Props {
   onImageUploadClick?: () => void;
   onExportClick?: () => void;
   onOpenProjects?: () => void;
+  onOpenTemplates?: () => void;
+  onOpenForms?: () => void;
+  onOpenNavigation?: () => void;
+  onOpenDataDisplay?: () => void;
+  onOpenFeedback?: () => void;
+  onOpenLayoutAction?: () => void;
   onOpenComponents?: () => void;
   onOpenTokens?: () => void;
   onOpenAssets?: () => void;
@@ -19,6 +26,14 @@ interface Props {
   onOpenCMS?: () => void;
   onOpenEcommerce?: () => void;
   onOpenDeploy?: () => void;
+  onOpenSections?: () => void;
+  onOpenEmbeds?: () => void;
+  onOpenIcons?: () => void;
+  onOpenTypography?: () => void;
+  onOpenAccessibility?: () => void;
+  onOpenImageEditor?: () => void;
+  onOpenScrollEffects?: () => void;
+  onOpenTheme?: () => void;
 }
 
 const COLOR_PRESETS = [
@@ -30,6 +45,12 @@ export const Toolbar: React.FC<Props> = ({
   onImageUploadClick,
   onExportClick,
   onOpenProjects,
+  onOpenTemplates,
+  onOpenForms,
+  onOpenNavigation,
+  onOpenDataDisplay,
+  onOpenFeedback,
+  onOpenLayoutAction,
   onOpenComponents,
   onOpenTokens,
   onOpenAssets,
@@ -40,6 +61,14 @@ export const Toolbar: React.FC<Props> = ({
   onOpenCMS,
   onOpenEcommerce,
   onOpenDeploy,
+  onOpenSections,
+  onOpenEmbeds,
+  onOpenIcons,
+  onOpenTypography,
+  onOpenAccessibility,
+  onOpenImageEditor,
+  onOpenScrollEffects,
+  onOpenTheme,
 }) => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
@@ -54,6 +83,11 @@ export const Toolbar: React.FC<Props> = ({
   const triggerImageUpload = useCanvasStore((s) => s.triggerImageUpload);
   const activeBreakpoint = useCanvasStore((s) => s.activeBreakpoint);
   const setActiveBreakpoint = useCanvasStore((s) => s.setActiveBreakpoint);
+  const isPreviewMode = useCanvasStore((s) => s.isPreviewMode);
+  const togglePreviewMode = useCanvasStore((s) => s.togglePreviewMode);
+
+  const cartItemCount = useEcommerceStore((s) => s.getCartItemCount());
+  const openCart = useEcommerceStore((s) => s.openCart);
 
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -92,6 +126,9 @@ export const Toolbar: React.FC<Props> = ({
             <div className="toolbar__tool-grid">
               <button className="toolbar__icon-btn" onClick={onOpenProjects} title="Projects Manager">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenTemplates} title="Starter Templates Gallery">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
               </button>
               {features.versionHistory && (
                 <button className="toolbar__icon-btn" onClick={onOpenVersionHistory} title="Version History">
@@ -197,6 +234,45 @@ export const Toolbar: React.FC<Props> = ({
         <div className="toolbar__group">
           <div className="toolbar__group-content">
             <div className="toolbar__tool-grid">
+              <button className="toolbar__icon-btn" onClick={onOpenForms} title="Form & Input Controls Engine">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenNavigation} title="Navigation & Wayfinding Library">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenDataDisplay} title="Content & Data Display Library">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenFeedback} title="Feedback, Overlays & Status Library">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenLayoutAction} title="Layout, Media & Action Controls Library">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenSections} title="Pre-built Page Sections">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenEmbeds} title="Custom Code & Embeds">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenIcons} title="Icons Library">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenTypography} title="Typography System & Google Fonts">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenAccessibility} title="Accessibility (a11y) Audit">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="4" r="2"/><path d="M12 6v6m0 0l-3 6m3-6l3 6M6 10h12"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenImageEditor} title="Image Editor & Filters">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenScrollEffects} title="Scroll & Motion Effects">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9 9 9 0 0 0 9-9"/><path d="M12 7v5l3 3"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenTheme} title="Global Site Theming">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"/></svg>
+              </button>
               {features.interactions && (
                 <button className="toolbar__icon-btn" onClick={onOpenInteractions} title="Interactions & Animations">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -289,6 +365,74 @@ export const Toolbar: React.FC<Props> = ({
           </div>
         </div>
         <span className="toolbar__group-label">View</span>
+      </div>
+
+      <div className="toolbar__group-sep" />
+
+      {/* ══════ PLAY / PREVIEW & CART ══════ */}
+      <div className="toolbar__group">
+        <div className="toolbar__group-content" style={{ display: "flex", gap: 6 }}>
+          <button
+            className={`toolbar__labeled-btn ${isPreviewMode ? "toolbar__labeled-btn--primary" : ""}`}
+            onClick={togglePreviewMode}
+            title={isPreviewMode ? "Exit Interactive Test Mode" : "Play / Test Interactive Website (Hyperlinks, Hover, Cart, Animations)"}
+            style={{
+              background: isPreviewMode ? "linear-gradient(135deg, #10b981, #059669)" : "rgba(255, 255, 255, 0.05)",
+              color: isPreviewMode ? "#ffffff" : "#e4e4f0",
+              borderColor: isPreviewMode ? "#10b981" : "rgba(255, 255, 255, 0.1)",
+              fontWeight: 700,
+            }}
+          >
+            {isPreviewMode ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                Editing
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Play Mode
+              </>
+            )}
+          </button>
+
+          {features.ecommerce && (
+            <button
+              className="toolbar__icon-btn"
+              onClick={openCart}
+              title="Shopping Cart"
+              style={{ position: "relative" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              {cartItemCount > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -2,
+                    right: -2,
+                    background: "#10b981",
+                    color: "#fff",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    borderRadius: "50%",
+                    width: 15,
+                    height: 15,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+        <span className="toolbar__group-label">Interactive</span>
       </div>
 
       <div className="toolbar__spacer" />

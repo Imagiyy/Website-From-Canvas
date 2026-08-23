@@ -115,24 +115,67 @@ const InteractionsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           {activeTab === "click" && (
             <div className="panel-section">
-              <div className="panel-section__title">Click Action</div>
+              <div className="panel-section__title">Click Action (Hyperlinks & Triggers)</div>
               <div className="panel-form-group">
                 <label className="panel-label">Action Type</label>
                 <select className="panel-select" value={interactions?.click?.type || "none"} onChange={(e) => setClickAction(selectedId, { type: e.target.value as ClickActionType, target: interactions?.click?.target })}>
                   {CLICK_ACTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                 </select>
               </div>
-              {interactions?.click?.type && interactions.click.type !== "none" && (
+
+              {interactions?.click?.type === "navigateTo" && (
                 <div className="panel-form-group">
-                  <label className="panel-label">Target</label>
-                  <input className="panel-input" placeholder={interactions.click.type === "openUrl" ? "https://example.com" : "Element/page ID"} value={interactions?.click?.target || ""} onChange={(e) => setClickAction(selectedId, { ...interactions?.click!, target: e.target.value })}/>
+                  <label className="panel-label">Target Canvas Page</label>
+                  <select
+                    className="panel-select"
+                    value={interactions?.click?.target || ""}
+                    onChange={(e) => setClickAction(selectedId, { type: "navigateTo", target: e.target.value, ...(interactions?.click || {}) })}
+                  >
+                    <option value="">-- Select Target Page --</option>
+                    {Object.values(useCanvasStore.getState().pages).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.slug})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
+
+              {(interactions?.click?.type === "scrollTo" || interactions?.click?.type === "toggleVisibility") && (
+                <div className="panel-form-group">
+                  <label className="panel-label">Target Layer / Element</label>
+                  <select
+                    className="panel-select"
+                    value={interactions?.click?.target || ""}
+                    onChange={(e) => setClickAction(selectedId, { type: interactions?.click?.type || "scrollTo", target: e.target.value, ...(interactions?.click || {}) })}
+                  >
+                    <option value="">-- Select Target Element --</option>
+                    {Object.values(useCanvasStore.getState().nodes).map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.name} [{n.type}]
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {interactions?.click?.type === "openUrl" && (
+                <div className="panel-form-group">
+                  <label className="panel-label">Target URL</label>
+                  <input
+                    className="panel-input"
+                    placeholder="https://example.com"
+                    value={interactions?.click?.target || ""}
+                    onChange={(e) => setClickAction(selectedId, { type: "openUrl", target: e.target.value, ...(interactions?.click || {}) })}
+                  />
+                </div>
+              )}
+
               {interactions?.click?.type === "openUrl" && (
                 <div className="panel-form-group">
                   <div className="panel-row">
                     <label className="panel-toggle">
-                      <input type="checkbox" checked={interactions?.click?.openInNewTab || false} onChange={(e) => setClickAction(selectedId, { ...interactions?.click!, openInNewTab: e.target.checked })}/>
+                      <input type="checkbox" checked={interactions?.click?.openInNewTab || false} onChange={(e) => setClickAction(selectedId, { type: "openUrl", target: interactions?.click?.target || "", ...interactions?.click, openInNewTab: e.target.checked })}/>
                       <span className="panel-toggle__slider" />
                     </label>
                     <span style={{ fontSize: 12, color: "#b4b4c8" }}>Open in new tab</span>
@@ -154,16 +197,16 @@ const InteractionsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div className="panel-grid panel-grid--2col">
                 <div className="panel-form-group">
                   <label className="panel-label">Duration (ms)</label>
-                  <input type="number" className="panel-input" value={interactions?.entrance?.duration || 500} onChange={(e) => setEntranceAnimation(selectedId, { ...interactions?.entrance!, duration: parseInt(e.target.value) || 500 })}/>
+                  <input type="number" className="panel-input" value={interactions?.entrance?.duration || 500} onChange={(e) => setEntranceAnimation(selectedId, { type: interactions?.entrance?.type || "fadeIn", duration: parseInt(e.target.value) || 500, delay: interactions?.entrance?.delay || 0, easing: interactions?.entrance?.easing || "ease" })}/>
                 </div>
                 <div className="panel-form-group">
                   <label className="panel-label">Delay (ms)</label>
-                  <input type="number" className="panel-input" value={interactions?.entrance?.delay || 0} onChange={(e) => setEntranceAnimation(selectedId, { ...interactions?.entrance!, delay: parseInt(e.target.value) || 0 })}/>
+                  <input type="number" className="panel-input" value={interactions?.entrance?.delay || 0} onChange={(e) => setEntranceAnimation(selectedId, { type: interactions?.entrance?.type || "fadeIn", duration: interactions?.entrance?.duration || 500, delay: parseInt(e.target.value) || 0, easing: interactions?.entrance?.easing || "ease" })}/>
                 </div>
               </div>
               <div className="panel-form-group">
                 <label className="panel-label">Easing</label>
-                <select className="panel-select" value={interactions?.entrance?.easing || "ease"} onChange={(e) => setEntranceAnimation(selectedId, { ...interactions?.entrance!, easing: e.target.value as EasingType })}>
+                <select className="panel-select" value={interactions?.entrance?.easing || "ease"} onChange={(e) => setEntranceAnimation(selectedId, { type: interactions?.entrance?.type || "fadeIn", duration: interactions?.entrance?.duration || 500, delay: interactions?.entrance?.delay || 0, easing: e.target.value as EasingType })}>
                   {EASING_TYPES.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
                 </select>
               </div>
@@ -181,16 +224,16 @@ const InteractionsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </div>
               <div className="panel-form-group">
                 <label className="panel-label">Trigger Offset ({Math.round((interactions?.scroll?.triggerOffset || 0.5) * 100)}% of viewport)</label>
-                <input type="range" className="panel-slider" min="0" max="1" step="0.05" value={interactions?.scroll?.triggerOffset || 0.5} onChange={(e) => setScrollAnimation(selectedId, { ...interactions?.scroll!, triggerOffset: parseFloat(e.target.value) })}/>
+                <input type="range" className="panel-slider" min="0" max="1" step="0.05" value={interactions?.scroll?.triggerOffset || 0.5} onChange={(e) => setScrollAnimation(selectedId, { type: interactions?.scroll?.type || "fadeIn", duration: interactions?.scroll?.duration || 600, easing: interactions?.scroll?.easing || "ease-out", triggerOffset: parseFloat(e.target.value) })}/>
               </div>
               <div className="panel-grid panel-grid--2col">
                 <div className="panel-form-group">
                   <label className="panel-label">Duration (ms)</label>
-                  <input type="number" className="panel-input" value={interactions?.scroll?.duration || 600} onChange={(e) => setScrollAnimation(selectedId, { ...interactions?.scroll!, duration: parseInt(e.target.value) || 600 })}/>
+                  <input type="number" className="panel-input" value={interactions?.scroll?.duration || 600} onChange={(e) => setScrollAnimation(selectedId, { type: interactions?.scroll?.type || "fadeIn", triggerOffset: interactions?.scroll?.triggerOffset || 0.5, duration: parseInt(e.target.value) || 600, easing: interactions?.scroll?.easing || "ease-out" })}/>
                 </div>
                 <div className="panel-form-group">
                   <label className="panel-label">Easing</label>
-                  <select className="panel-select" value={interactions?.scroll?.easing || "ease-out"} onChange={(e) => setScrollAnimation(selectedId, { ...interactions?.scroll!, easing: e.target.value as EasingType })}>
+                  <select className="panel-select" value={interactions?.scroll?.easing || "ease-out"} onChange={(e) => setScrollAnimation(selectedId, { type: interactions?.scroll?.type || "fadeIn", triggerOffset: interactions?.scroll?.triggerOffset || 0.5, duration: interactions?.scroll?.duration || 600, easing: e.target.value as EasingType })}>
                     {EASING_TYPES.map((et) => <option key={et.value} value={et.value}>{et.label}</option>)}
                   </select>
                 </div>

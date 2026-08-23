@@ -96,11 +96,97 @@ function renderNodeSVG(node: CanvasNode, nodes: NodesById): string {
     }
 
     case "brush":
-    case "pencil": {
+    case "pencil":
+    case "pen": {
       const pathData = node.pathData || "";
       const strokeColor = s.border?.color || s.fill || "#3B82F6";
-      const strokeWidth = s.brushSize || (node.type === "pencil" ? 2 : 12);
+      const strokeWidth = s.brushSize || (node.type === "pencil" || node.type === "pen" ? 2 : 12);
       return `${defs}  <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"${opacity}${transform}/>`;
+    }
+
+    case "polygon": {
+      const fill = s.fill || "#3B82F6";
+      const sides = Math.max(3, Math.min(30, s.sides ?? 5));
+      const pcx = width / 2;
+      const pcy = height / 2;
+      const prx = width / 2;
+      const pry = height / 2;
+      const pts: string[] = [];
+      for (let i = 0; i < sides; i++) {
+        const a = (i * 2 * Math.PI) / sides - Math.PI / 2;
+        pts.push(`${(pcx + prx * Math.cos(a)).toFixed(2)},${(pcy + pry * Math.sin(a)).toFixed(2)}`);
+      }
+      let stroke = "";
+      if (s.border) {
+        stroke = ` stroke="${s.border.color}" stroke-width="${s.border.width}"`;
+      }
+      return `${defs}  <g${transform}><polygon points="${pts.join(" ")}" fill="${fill}"${stroke}${opacity}${filter} transform="translate(${x}, ${y})"/></g>`;
+    }
+
+    case "star": {
+      const fill = s.fill || "#F59E0B";
+      const starN = Math.max(3, Math.min(20, s.starPoints ?? 5));
+      const innerRatio = s.innerRadius ?? 0.5;
+      const scx = width / 2;
+      const scy = height / 2;
+      const sOrx = width / 2;
+      const sOry = height / 2;
+      const sIrx = sOrx * innerRatio;
+      const sIry = sOry * innerRatio;
+      const spts: string[] = [];
+      const totalV = starN * 2;
+      for (let i = 0; i < totalV; i++) {
+        const a = (i * Math.PI) / starN - Math.PI / 2;
+        const isOuter = i % 2 === 0;
+        const srx = isOuter ? sOrx : sIrx;
+        const sry = isOuter ? sOry : sIry;
+        spts.push(`${(scx + srx * Math.cos(a)).toFixed(2)},${(scy + sry * Math.sin(a)).toFixed(2)}`);
+      }
+      let stroke = "";
+      if (s.border) {
+        stroke = ` stroke="${s.border.color}" stroke-width="${s.border.width}"`;
+      }
+      return `${defs}  <g${transform}><polygon points="${spts.join(" ")}" fill="${fill}"${stroke}${opacity}${filter} transform="translate(${x}, ${y})"/></g>`;
+    }
+
+    case "curve": {
+      const strokeColor = s.border?.color || s.fill || "#EC4899";
+      const strokeWidth = Math.max(2, s.border?.width ?? 4);
+      const curvature = s.curvature ?? 50;
+      const curveDepth = (curvature / 100) * (height / 2);
+      const pathD = `M 0,${height / 2} C ${width * 0.25},${height / 2 - curveDepth} ${width * 0.75},${height / 2 + curveDepth} ${width},${height / 2}`;
+      return `${defs}  <g${transform}><path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round"${opacity}${filter} transform="translate(${x}, ${y})"/></g>`;
+    }
+
+    case "shape3d": {
+      const fill = s.fill || "#8B5CF6";
+      const s3dSides = Math.max(3, Math.min(30, s.sides ?? 4));
+      const depth = s.depth3d ?? 30;
+      const sideColor = s.color3d ?? "#6D28D9";
+      const dOff = Math.max(8, depth * 0.35);
+      const fW = Math.max(20, width - dOff);
+      const fH = Math.max(20, height - dOff);
+      const fcx = fW / 2;
+      const fcy = fH / 2;
+      const frx = fW / 2;
+      const fry = fH / 2;
+      const verts: string[] = [];
+      for (let i = 0; i < s3dSides; i++) {
+        const a = (i * 2 * Math.PI) / s3dSides - Math.PI / 2;
+        verts.push(`${(fcx + frx * Math.cos(a)).toFixed(2)},${(fcy + fry * Math.sin(a)).toFixed(2)}`);
+      }
+      let stroke = "";
+      if (s.border) {
+        stroke = ` stroke="${s.border.color}" stroke-width="${s.border.width}"`;
+      }
+      const backPoly = `<polygon points="${verts.join(" ")}" fill="${sideColor}" opacity="${(s.opacity * 0.7).toFixed(2)}" transform="translate(${dOff}, ${dOff})"/>`;
+      const frontPoly = `<polygon points="${verts.join(" ")}" fill="${fill}"${stroke}${opacity}${filter}/>`;
+      return `${defs}  <g${transform}><g transform="translate(${x}, ${y})">${backPoly}${frontPoly}</g></g>`;
+    }
+
+    case "product": {
+      const title = node.name || "Product";
+      return `${defs}  <g${transform}><rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#1e1e2e" rx="12"${opacity}/><text x="${x + 12}" y="${y + 24}" font-family="Inter, sans-serif" font-size="12" fill="#e4e4f0">${escapeXml(title)}</text></g>`;
     }
 
     default: {

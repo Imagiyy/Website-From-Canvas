@@ -55,6 +55,7 @@ interface CanvasStoreState {
   imageUploadHandler: (() => void) | null;
   activeColor: string;
   mouseCanvasPos: { x: number; y: number };
+  isPreviewMode: boolean;
 
   // ---- History ----
   past: Snapshot[];
@@ -63,6 +64,8 @@ interface CanvasStoreState {
 
 interface CanvasStoreActions {
   setActiveColor: (color: string) => void;
+  togglePreviewMode: () => void;
+  setPreviewMode: (preview: boolean) => void;
   // Grid & Ruler Actions
   toggleShowGrid: () => void;
   setGridSize: (size: number) => void;
@@ -75,6 +78,7 @@ interface CanvasStoreActions {
   renamePage: (pageId: string, name: string) => void;
   setActivePage: (pageId: string) => void;
   setPages: (pages: import("../types/canvas").PagesById, activePageId?: string) => void;
+  setPageBackgroundColor: (color: string, pageId?: string) => void;
 
   // Breakpoint Switcher & Page Height
   setActiveBreakpoint: (bp: import("../types/canvas").BreakpointKey) => void;
@@ -96,6 +100,7 @@ interface CanvasStoreActions {
   updateNodeName: (id: NodeId, name: string) => void;
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
   updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
+  updateNode: (id: NodeId, partial: Partial<CanvasNode>) => void;
   updateNodeContent: (id: NodeId, content: TextContent | ImageContent, skipUndo?: boolean) => void;
   updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   toggleNodeVisibility: (id: NodeId) => void;
@@ -162,6 +167,13 @@ interface CanvasStoreActions {
   createShape3D: (x: number, y: number, width?: number, height?: number, sides?: number) => void;
   createPathNode: (type: "brush" | "pencil" | "pen", pathData: string, bounds: Geometry, style?: Partial<Style>) => void;
   fillNodeColor: (nodeId: NodeId, color: string) => void;
+  loadTemplate: (templateId: string) => void;
+  createFormControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
+  createNavControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
+  createDataControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
+  createFeedbackControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
+  createLayoutActionControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
+  createSectionControl: (type: import("../types/canvas").ElementType, name: string, options?: any) => void;
 }
 
 type CanvasStore = CanvasStoreState & CanvasStoreActions;
@@ -371,8 +383,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   imageUploadHandler: null,
   activeColor: normalizedSavedState?.activeColor ?? "#3B82F6",
   mouseCanvasPos: { x: 0, y: 0 },
+  isPreviewMode: false,
 
   setActiveColor: (color: string) => set({ activeColor: color }),
+  togglePreviewMode: () => set((s) => ({ isPreviewMode: !s.isPreviewMode, selectedNodeIds: new Set(), editingNodeId: null })),
+  setPreviewMode: (preview) => set({ isPreviewMode: preview, selectedNodeIds: new Set(), editingNodeId: null }),
   past: [],
   future: [],
 
@@ -454,6 +469,23 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         ...page,
         name: trimmed,
         slug: slug || page.slug,
+      },
+    };
+
+    set({ pages: updatedPages });
+  },
+
+  setPageBackgroundColor: (color, pageId) => {
+    const state = get();
+    const targetId = pageId || state.activePageId;
+    const page = state.pages[targetId];
+    if (!page) return;
+
+    const updatedPages = {
+      ...state.pages,
+      [targetId]: {
+        ...page,
+        backgroundColor: color,
       },
     };
 
@@ -556,15 +588,21 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
     lastNudgeTime = now;
 
+    const newNodes = { ...state.nodes };
     state.selectedNodeIds.forEach((id) => {
-      const node = state.nodes[id];
+      const node = newNodes[id];
       if (node) {
-        state.updateNodeGeometry(id, {
-          x: node.geometry.x + dx,
-          y: node.geometry.y + dy,
-        });
+        newNodes[id] = {
+          ...node,
+          geometry: {
+            ...node.geometry,
+            x: node.geometry.x + dx,
+            y: node.geometry.y + dy,
+          },
+        };
       }
     });
+    set({ nodes: newNodes });
   },
 
   // -----------------------------------------------------------------------
@@ -659,19 +697,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
               ...bpOverrides,
               [bp]: {
                 ...currentOverride,
-                style: {
-                  ...currentStyle,
-                  ...partial,
-                  border: partial.border
-                    ? { ...currentStyle.border, ...partial.border }
-                    : currentStyle.border,
-                  typography: partial.typography
-                    ? { ...currentStyle.typography, ...partial.typography }
-                    : currentStyle.typography,
-                  shadow: partial.shadow
-                    ? { ...currentStyle.shadow, ...partial.shadow }
-                    : currentStyle.shadow,
-                },
+                style: { ...currentStyle, ...partial },
               },
             },
           },
@@ -687,23 +713,26 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         ...state.nodes,
         [id]: {
           ...node,
-          style: {
-            ...node.style,
-            ...partial,
-            border: partial.border
-              ? { ...node.style.border, ...partial.border }
-              : node.style.border,
-            typography: partial.typography
-              ? { ...node.style.typography, ...partial.typography }
-              : node.style.typography,
-            shadow: partial.shadow
-              ? { ...node.style.shadow, ...partial.shadow }
-              : node.style.shadow,
-          },
+          style: { ...node.style, ...partial },
         },
       },
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
+    });
+  },
+
+  updateNode: (id, partial) => {
+    const state = get();
+    const target = state.nodes[id];
+    if (!target) return;
+    set({
+      nodes: {
+        ...state.nodes,
+        [id]: {
+          ...target,
+          ...partial,
+        },
+      },
     });
   },
 
@@ -997,12 +1026,28 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
   deleteNode: (id: NodeId) => {
     const state = get();
-    if (!state.nodes[id]) return;
+    const node = state.nodes[id];
+    if (!node) return;
     const snap = snapshot(state);
     const newNodes = { ...state.nodes };
-    delete newNodes[id];
+
+    // Remove from parent group's children array
+    if (node.parentId && newNodes[node.parentId]) {
+      const parent = newNodes[node.parentId];
+      if (parent.children) {
+        newNodes[node.parentId] = {
+          ...parent,
+          children: parent.children.filter((cId) => cId !== id),
+        };
+      }
+    }
+
+    // Also delete all children recursively if it's a group
+    const subtree = collectSubtreeIds(state.nodes, id);
+    subtree.forEach((subId) => delete newNodes[subId]);
+
     const newSelected = new Set(state.selectedNodeIds);
-    newSelected.delete(id);
+    subtree.forEach((subId) => newSelected.delete(subId));
     set({
       nodes: newNodes,
       selectedNodeIds: newSelected,
@@ -1141,34 +1186,48 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
 
     const snap = snapshot(state);
-    const newNodes = structuredClone(state.nodes);
+    const newNodes: NodesById = {};
+    for (const key of Object.keys(state.nodes)) {
+      newNodes[key] = { ...state.nodes[key] };
+    }
 
     const oldParentId = dragged.parentId;
 
     // Remove dragged from old parent's children array if applicable
     if (oldParentId && newNodes[oldParentId]?.children) {
-      newNodes[oldParentId].children = newNodes[oldParentId].children!.filter((id) => id !== draggedId);
+      newNodes[oldParentId] = {
+        ...newNodes[oldParentId],
+        children: newNodes[oldParentId].children!.filter((id) => id !== draggedId),
+      };
     }
 
     if (position === "inside" && target.type === "group") {
-      newNodes[draggedId].parentId = targetId;
+      newNodes[draggedId] = { ...newNodes[draggedId], parentId: targetId };
       if (!newNodes[targetId].children) {
-        newNodes[targetId].children = [];
+        newNodes[targetId] = { ...newNodes[targetId], children: [] };
       }
       if (!newNodes[targetId].children!.includes(draggedId)) {
-        newNodes[targetId].children!.push(draggedId);
+        newNodes[targetId] = {
+          ...newNodes[targetId],
+          children: [...newNodes[targetId].children!, draggedId],
+        };
       }
       const groupSiblings = Object.values(newNodes).filter((n) => n.parentId === targetId);
       const maxOrd = groupSiblings.length > 0 ? Math.max(...groupSiblings.map((n) => n.order)) : -1;
-      newNodes[draggedId].order = maxOrd + 1;
+      newNodes[draggedId] = { ...newNodes[draggedId], order: maxOrd + 1 };
     } else {
       const newParentId = target.parentId;
-      newNodes[draggedId].parentId = newParentId;
+      newNodes[draggedId] = { ...newNodes[draggedId], parentId: newParentId };
 
       if (newParentId && newNodes[newParentId]) {
-        if (!newNodes[newParentId].children) newNodes[newParentId].children = [];
+        if (!newNodes[newParentId].children) {
+          newNodes[newParentId] = { ...newNodes[newParentId], children: [] };
+        }
         if (!newNodes[newParentId].children!.includes(draggedId)) {
-          newNodes[newParentId].children!.push(draggedId);
+          newNodes[newParentId] = {
+            ...newNodes[newParentId],
+            children: [...newNodes[newParentId].children!, draggedId],
+          };
         }
       }
 
@@ -1179,14 +1238,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       const targetIdx = siblings.findIndex((n) => n.id === targetId);
 
       if (targetIdx !== -1) {
-        const insertIdx = position === "before" ? targetIdx + 1 : targetIdx;
+        const insertIdx = position === "before" ? targetIdx : targetIdx + 1;
         siblings.splice(insertIdx, 0, newNodes[draggedId]);
       } else {
         siblings.push(newNodes[draggedId]);
       }
 
       siblings.forEach((n, idx) => {
-        newNodes[n.id].order = idx;
+        newNodes[n.id] = { ...newNodes[n.id], order: idx };
       });
     }
 
@@ -1304,7 +1363,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       .map((id) => state.nodes[id])
       .filter((n): n is CanvasNode => n !== undefined);
 
-    if (selectedNodes.some((node) => node.type === "group")) return;
+    // Allow grouping groups (nested groups) — only block if a selected node is an ancestor of another selected node
 
     const parentIds = new Set(selectedNodes.map((n) => n.parentId));
     if (parentIds.size > 1) return;
@@ -1449,16 +1508,25 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       const typeNum = updatedNextNumber[oldNode.type] || 1;
       updatedNextNumber[oldNode.type] = typeNum + 1;
 
-      const namePrefix =
-        oldNode.type === "rectangle"
-          ? "Rectangle"
-          : oldNode.type === "text"
-            ? "Text"
-            : oldNode.type === "image"
-              ? "Image"
-              : oldNode.type === "line"
-                ? "Line"
-                : "Group";
+      const namePrefixMap: Record<string, string> = {
+        rectangle: "Rectangle",
+        text: "Text",
+        image: "Image",
+        line: "Line",
+        group: "Group",
+        polygon: "Polygon",
+        circle: "Circle",
+        curve: "Curve",
+        star: "Star",
+        shape3d: "3D Shape",
+        brush: "Brush",
+        pencil: "Pencil",
+        pen: "Pen Vector",
+        component: "Component",
+        componentInstance: "Component Instance",
+        product: "Product",
+      };
+      const namePrefix = namePrefixMap[oldNode.type] ?? "Element";
 
       const newNode: CanvasNode = {
         ...structuredClone(oldNode),
@@ -1623,7 +1691,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     });
   },
 
-  createText: (x, y) => {
+  createText: (x, y, width, height) => {
     const state = get();
     const id = crypto.randomUUID();
     const num = state.nextNumber.text;
@@ -1633,7 +1701,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       type: "text",
       name: `Text ${num}`,
       order: maxOrder(state.nodes) + 1,
-      geometry: { x, y, width: 200, height: 40, rotation: 0 },
+      geometry: { x, y, width: (width && width > 10) ? width : 200, height: (height && height > 10) ? height : 40, rotation: 0 },
       style: {
         opacity: 1,
         typography: {
@@ -1905,12 +1973,23 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
     const snap = snapshot(state);
 
-    // If node is text, fill typography color; if line/brush/pencil, fill stroke color; else fill background color!
+    // If node is text, fill typography color; if line/brush/pencil/pen/curve, fill stroke color; else fill background color!
     let updatedStyle = { ...target.style };
     if (target.type === "text" && target.style.typography) {
       updatedStyle.typography = { ...target.style.typography, color };
-    } else if (target.type === "line" || target.type === "brush" || target.type === "pencil") {
-      updatedStyle.border = { ...(target.style.border ?? { width: 2, style: "solid" }), color };
+    } else if (
+      target.type === "line" ||
+      target.type === "brush" ||
+      target.type === "pencil" ||
+      target.type === "pen" ||
+      target.type === "curve"
+    ) {
+      const currentWidth = target.style.border?.width ?? target.style.brushSize ?? 2;
+      updatedStyle.border = {
+        color,
+        width: Math.max(1, currentWidth),
+        style: target.style.border?.style ?? "solid",
+      };
       updatedStyle.fill = color;
     } else {
       updatedStyle.fill = color;
@@ -1928,9 +2007,381 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       future: [],
     });
   },
+
+  loadTemplate: (templateId: string) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const templateNodes: Record<string, CanvasNode> = {};
+
+    if (templateId === "saas") {
+      const heroId = crypto.randomUUID();
+      const titleId = crypto.randomUUID();
+      const subId = crypto.randomUUID();
+      const btnId = crypto.randomUUID();
+      const f1Id = crypto.randomUUID();
+      const f2Id = crypto.randomUUID();
+      const f3Id = crypto.randomUUID();
+
+      templateNodes[heroId] = {
+        id: heroId, parentId: null, type: "rectangle", name: "Hero Banner", order: 1,
+        geometry: { x: 100, y: 80, width: 1000, height: 420, rotation: 0 },
+        style: { opacity: 1, fill: "#1a1a2e", cornerRadius: 20, border: { color: "rgba(255,255,255,0.1)", width: 1, style: "solid" } },
+      };
+      templateNodes[titleId] = {
+        id: titleId, parentId: heroId, type: "text", name: "Headline", order: 2,
+        geometry: { x: 160, y: 140, width: 880, height: 70, rotation: 0 },
+        style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 44, fontWeight: 800, color: "#ffffff", align: "left", lineHeight: 1.2 } },
+        content: { kind: "text", text: "Build & Publish Websites Visual-First" },
+      };
+      templateNodes[subId] = {
+        id: subId, parentId: heroId, type: "text", name: "Subtitle", order: 3,
+        geometry: { x: 160, y: 220, width: 760, height: 50, rotation: 0 },
+        style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 400, color: "#a0a0c0", align: "left", lineHeight: 1.5 } },
+        content: { kind: "text", text: "Transform canvas drawings into production-ready React, Next.js & HTML code." },
+      };
+      templateNodes[btnId] = {
+        id: btnId, parentId: heroId, type: "rectangle", name: "CTA Button", order: 4,
+        geometry: { x: 160, y: 300, width: 180, height: 48, rotation: 0 },
+        style: { opacity: 1, fill: "#3b82f6", cornerRadius: 10 },
+      };
+      templateNodes[f1Id] = {
+        id: f1Id, parentId: null, type: "rectangle", name: "Feature Card 1", order: 5,
+        geometry: { x: 100, y: 530, width: 310, height: 200, rotation: 0 },
+        style: { opacity: 1, fill: "#16162a", cornerRadius: 16, border: { color: "rgba(255,255,255,0.08)", width: 1, style: "solid" } },
+      };
+      templateNodes[f2Id] = {
+        id: f2Id, parentId: null, type: "rectangle", name: "Feature Card 2", order: 6,
+        geometry: { x: 445, y: 530, width: 310, height: 200, rotation: 0 },
+        style: { opacity: 1, fill: "#16162a", cornerRadius: 16, border: { color: "rgba(255,255,255,0.08)", width: 1, style: "solid" } },
+      };
+      templateNodes[f3Id] = {
+        id: f3Id, parentId: null, type: "rectangle", name: "Feature Card 3", order: 7,
+        geometry: { x: 790, y: 530, width: 310, height: 200, rotation: 0 },
+        style: { opacity: 1, fill: "#16162a", cornerRadius: 16, border: { color: "rgba(255,255,255,0.08)", width: 1, style: "solid" } },
+      };
+    } else if (templateId === "ecommerce") {
+      const bannerId = crypto.randomUUID();
+      const p1Id = crypto.randomUUID();
+      const p2Id = crypto.randomUUID();
+      const p3Id = crypto.randomUUID();
+
+      templateNodes[bannerId] = {
+        id: bannerId, parentId: null, type: "rectangle", name: "Store Banner", order: 1,
+        geometry: { x: 100, y: 80, width: 1000, height: 240, rotation: 0 },
+        style: { opacity: 1, fill: "#1e1b4b", cornerRadius: 16 },
+      };
+      templateNodes[p1Id] = {
+        id: p1Id, parentId: null, type: "product", name: "Product 1", order: 2,
+        productId: "prod-1",
+        geometry: { x: 100, y: 350, width: 310, height: 280, rotation: 0 },
+        style: { opacity: 1, fill: "#1e1e2e", cornerRadius: 12 },
+      };
+      templateNodes[p2Id] = {
+        id: p2Id, parentId: null, type: "product", name: "Product 2", order: 3,
+        productId: "prod-2",
+        geometry: { x: 445, y: 350, width: 310, height: 280, rotation: 0 },
+        style: { opacity: 1, fill: "#1e1e2e", cornerRadius: 12 },
+      };
+      templateNodes[p3Id] = {
+        id: p3Id, parentId: null, type: "product", name: "Product 3", order: 4,
+        productId: "prod-3",
+        geometry: { x: 790, y: 350, width: 310, height: 280, rotation: 0 },
+        style: { opacity: 1, fill: "#1e1e2e", cornerRadius: 12 },
+      };
+    }
+
+    set({
+      nodes: { ...state.nodes, ...templateNodes },
+      selectedNodeIds: new Set(Object.keys(templateNodes)),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createFormControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth = type === "formCodeEditor" || type === "formCreditCard" || type === "formGradientPicker" ? 420 : type === "formSignature" || type === "formMap" || type === "formAccordion" ? 340 : type === "formRichText" || type === "formFileInput" ? 400 : 280;
+    const defaultHeight = type === "formCodeEditor" ? 220 : type === "formSignature" || type === "formMap" ? 200 : type === "formRichText" ? 180 : type === "formFileInput" ? 140 : type === "formAccordion" ? 120 : type === "formCreditCard" ? 110 : type === "formInput" && options?.inputType === "textarea" ? 120 : 48;
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 200 + Math.random() * 40,
+        y: 200 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: "#1e1e2e",
+        cornerRadius: 8,
+        border: { color: "rgba(255, 255, 255, 0.15)", width: 1, style: "solid" },
+      },
+      content: {
+        kind: "text",
+        text: options?.label || name,
+        ...options,
+      },
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createNavControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth =
+      type === "navHeader" ? 900 : type === "navTabs" ? 480 : type === "navPagination" ? 380 : type === "navBreadcrumb" ? 340 : type === "navSidebar" ? 240 : 280;
+    const defaultHeight =
+      type === "navSidebar" ? 500 : type === "navToc" ? 240 : type === "navHeader" ? 64 : type === "navTabs" ? 48 : type === "navPagination" ? 44 : 40;
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 100 + Math.random() * 40,
+        y: 100 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: "#181826",
+        cornerRadius: 8,
+        border: { color: "rgba(255, 255, 255, 0.15)", width: 1, style: "solid" },
+      },
+      content: {
+        kind: "text",
+        text: name,
+        ...options,
+      },
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createDataControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth =
+      type === "dataTable" ? 600 : type === "dataAccordion" ? 380 : type === "dataList" ? 360 : type === "dataCard" ? 340 : type === "dataTooltip" ? 220 : 120;
+    const defaultHeight =
+      type === "dataCard" ? 260 : type === "dataTable" ? 240 : type === "dataList" ? 220 : type === "dataAccordion" ? 200 : type === "dataTooltip" ? 44 : 32;
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 120 + Math.random() * 40,
+        y: 120 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: "#181826",
+        cornerRadius: 8,
+        border: { color: "rgba(255, 255, 255, 0.15)", width: 1, style: "solid" },
+      },
+      content: {
+        kind: "text",
+        text: name,
+        ...options,
+      },
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createFeedbackControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth =
+      type === "feedbackAlert" ? 420 : type === "feedbackModal" || type === "feedbackEmptyState" ? 360 : type === "feedbackToast" || type === "feedbackSkeleton" ? 340 : 320;
+    const defaultHeight =
+      type === "feedbackEmptyState" ? 240 : type === "feedbackModal" ? 220 : type === "feedbackSkeleton" ? 180 : type === "feedbackAlert" ? 56 : type === "feedbackToast" ? 50 : 48;
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 140 + Math.random() * 40,
+        y: 140 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: "#181826",
+        cornerRadius: 8,
+        border: { color: "rgba(255, 255, 255, 0.15)", width: 1, style: "solid" },
+      },
+      content: {
+        kind: "text",
+        text: name,
+        ...options,
+      },
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createLayoutActionControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth =
+      type === "layoutCarousel" ? 540 : type === "layoutContainer" ? 500 : type === "mediaPlayer" ? 480 : type === "layoutDivider" ? 360 : type === "actionMenu" ? 180 : 160;
+    const defaultHeight =
+      type === "mediaPlayer" ? 270 : type === "layoutCarousel" ? 260 : type === "layoutContainer" ? 180 : type === "actionButton" ? 44 : type === "actionMenu" ? 40 : 24;
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 160 + Math.random() * 40,
+        y: 160 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: type === "actionButton" && options?.variant === "primary" ? "#3b82f6" : "#181826",
+        cornerRadius: type === "actionButton" && options?.variant === "fab" ? 22 : 8,
+        border: { color: "rgba(255, 255, 255, 0.15)", width: 1, style: "solid" },
+      },
+      content: {
+        kind: "text",
+        text: name,
+        ...options,
+      },
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  createSectionControl: (type, name, options) => {
+    const state = get();
+    const snap = snapshot(state);
+
+    const id = crypto.randomUUID();
+    const defaultWidth = options?.defaultSize?.w ?? (type === "iconElement" ? 48 : 800);
+    const defaultHeight = options?.defaultSize?.h ?? (type === "iconElement" ? 48 : 360);
+
+    const newNode: CanvasNode = {
+      id,
+      parentId: null,
+      type,
+      name,
+      order: Object.keys(state.nodes).length + 1,
+      geometry: {
+        x: 100 + Math.random() * 40,
+        y: 100 + Math.random() * 40,
+        width: defaultWidth,
+        height: defaultHeight,
+        rotation: 0,
+      },
+      style: {
+        opacity: 1,
+        fill: "transparent",
+      },
+      content: {
+        kind: "text",
+        text: name,
+      },
+      embedData: options?.embedData,
+      iconData: options?.iconData,
+    };
+
+    set({
+      nodes: { ...state.nodes, [id]: newNode },
+      selectedNodeIds: new Set([id]),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
 }));
 
-// Auto-save: subscribe to node changes and debounce save to localStorage
+// Auto-save: subscribe to DATA changes only (not viewport/mouse/tool/guides)
+let _prevNodes: NodesById | null = null;
+let _prevPages: import("../types/canvas").PagesById | null = null;
+let _prevActivePageId: string | null = null;
+let _prevNextNumber: Record<ElementType, number> | null = null;
+let _prevActiveColor: string | null = null;
+let _prevPageHeight: Record<import("../types/canvas").BreakpointKey, number> | null = null;
+
 useCanvasStore.subscribe((state) => {
-  scheduleAutoSave(state);
+  if (
+    state.nodes !== _prevNodes ||
+    state.pages !== _prevPages ||
+    state.activePageId !== _prevActivePageId ||
+    state.nextNumber !== _prevNextNumber ||
+    state.activeColor !== _prevActiveColor ||
+    state.pageHeight !== _prevPageHeight
+  ) {
+    _prevNodes = state.nodes;
+    _prevPages = state.pages;
+    _prevActivePageId = state.activePageId;
+    _prevNextNumber = state.nextNumber;
+    _prevActiveColor = state.activeColor;
+    _prevPageHeight = state.pageHeight;
+    scheduleAutoSave(state);
+  }
 });

@@ -19,7 +19,69 @@ export type ElementType =
   | "pen"
   | "component"
   | "componentInstance"
-  | "product";
+  | "product"
+  | "formInput"
+  | "formSelect"
+  | "formCheckbox"
+  | "formRadio"
+  | "formSlider"
+  | "formDatePicker"
+  | "formColorPicker"
+  | "formFileInput"
+  | "formRating"
+  | "formSignature"
+  | "formMap"
+  | "formSegmented"
+  | "formRichText"
+  | "formCodeEditor"
+  | "formOtpPin"
+  | "formCreditCard"
+  | "formTagInput"
+  | "formDualSlider"
+  | "formVoiceRecorder"
+  | "formAvatarUpload"
+  | "formEmojiPicker"
+  | "formStepper"
+  | "formToggleGroup"
+  | "formAccordion"
+  | "formCaptcha"
+  | "formGradientPicker"
+  | "formCurrency"
+  | "formTimeRange"
+  | "navHeader"
+  | "navSidebar"
+  | "navBreadcrumb"
+  | "navPagination"
+  | "navTabs"
+  | "navToc"
+  | "dataCard"
+  | "dataTable"
+  | "dataList"
+  | "dataBadge"
+  | "dataAccordion"
+  | "dataTooltip"
+  | "feedbackModal"
+  | "feedbackToast"
+  | "feedbackAlert"
+  | "feedbackProgress"
+  | "feedbackSkeleton"
+  | "feedbackEmptyState"
+  | "layoutContainer"
+  | "layoutCarousel"
+  | "mediaPlayer"
+  | "layoutDivider"
+  | "actionButton"
+  | "actionMenu"
+  | "sectionHero"
+  | "sectionPricing"
+  | "sectionTestimonials"
+  | "sectionTeam"
+  | "sectionFeatures"
+  | "sectionCTA"
+  | "sectionFooter"
+  | "embedCode"
+  | "embedIframe"
+  | "iconElement";
 
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
 
@@ -347,6 +409,42 @@ export interface CanvasNode {
 
   // Product reference (4.5)
   productId?: string;
+
+  // Scroll & Motion effects (Phase 3)
+  scrollEffects?: {
+    entrance?: "fadeIn" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "scaleUp" | "blurIn" | "none";
+    scrollBehavior?: "parallax" | "sticky" | "revealOnScroll" | "none";
+    parallaxSpeed?: number; // 0.1-2.0
+    duration?: number; // ms
+    delay?: number; // ms
+    easing?: string;
+  };
+
+  // Image editing filters (Phase 2)
+  imageFilters?: {
+    brightness?: number; // 0-200
+    contrast?: number; // 0-200
+    saturation?: number; // 0-200
+    blur?: number; // 0-20
+    grayscale?: number; // 0-100
+    sepia?: number; // 0-100
+    hueRotate?: number; // 0-360
+  };
+
+  // Embed data (Phase 1)
+  embedData?: {
+    code?: string; // raw HTML/CSS/JS
+    iframeSrc?: string; // iframe URL
+    embedType?: "youtube" | "maps" | "spotify" | "twitter" | "custom";
+  };
+
+  // Icon data (Phase 1)
+  iconData?: {
+    iconName: string;
+    svgPath: string;
+    iconColor?: string;
+    iconSize?: number;
+  };
 }
 
 // The canvas holds a flat map of nodes, not a nested tree:
@@ -359,6 +457,7 @@ export interface CanvasPage {
   slug: string;
   nodes: NodesById;
   seo?: PageSEO; // Per-page SEO settings (4.3)
+  backgroundColor?: string; // Full page background color (transparent, hex, gradient)
 }
 
 export type PagesById = Record<string, CanvasPage>;

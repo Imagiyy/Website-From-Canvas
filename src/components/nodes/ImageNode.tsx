@@ -55,9 +55,16 @@ export const ImageNode: React.FC<Props> = React.memo(({ node }) => {
             opacity: style.opacity,
             borderRadius: `${style.cornerRadius ?? 0}px`,
             overflow: "hidden",
-            filter: style.shadow
-              ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})`
-              : undefined,
+            filter: [
+              style.shadow ? `drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color})` : "",
+              node.imageFilters?.brightness !== undefined ? `brightness(${node.imageFilters.brightness}%)` : "",
+              node.imageFilters?.contrast !== undefined ? `contrast(${node.imageFilters.contrast}%)` : "",
+              node.imageFilters?.saturation !== undefined ? `saturate(${node.imageFilters.saturation}%)` : "",
+              node.imageFilters?.blur !== undefined ? `blur(${node.imageFilters.blur}px)` : "",
+              node.imageFilters?.grayscale !== undefined ? `grayscale(${node.imageFilters.grayscale}%)` : "",
+              node.imageFilters?.sepia !== undefined ? `sepia(${node.imageFilters.sepia}%)` : "",
+              node.imageFilters?.hueRotate !== undefined ? `hue-rotate(${node.imageFilters.hueRotate}deg)` : "",
+            ].filter(Boolean).join(" ") || undefined,
           }}
         >
           {imageContent.assetUrl ? (

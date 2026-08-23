@@ -21,6 +21,20 @@ import SEOPanel from "./components/panels/SEOPanel";
 import CMSPanel from "./components/panels/CMSPanel";
 import EcommercePanel from "./components/panels/EcommercePanel";
 import DeployPanel from "./components/panels/DeployPanel";
+import { TemplateModal } from "./components/panels/TemplateModal";
+import { FormControlsPanel } from "./components/panels/FormControlsPanel";
+import { NavigationPanel } from "./components/panels/NavigationPanel";
+import { DataDisplayPanel } from "./components/panels/DataDisplayPanel";
+import { FeedbackPanel } from "./components/panels/FeedbackPanel";
+import { LayoutActionPanel } from "./components/panels/LayoutActionPanel";
+import { PageSectionsPanel } from "./components/panels/PageSectionsPanel";
+import { EmbedPanel } from "./components/panels/EmbedPanel";
+import { IconLibraryPanel } from "./components/panels/IconLibraryPanel";
+import { TypographyPanel } from "./components/panels/TypographyPanel";
+import { AccessibilityPanel } from "./components/panels/AccessibilityPanel";
+import { ImageEditorPanel } from "./components/panels/ImageEditorPanel";
+import { ScrollEffectsPanel } from "./components/panels/ScrollEffectsPanel";
+import { ThemePanel } from "./components/panels/ThemePanel";
 
 import { useCanvasStore } from "./store/canvasStore";
 import { useProjectStore } from "./store/projectStore";
@@ -39,6 +53,20 @@ export interface ContextMenuState {
 function App() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [isFormsOpen, setIsFormsOpen] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [isDataOpen, setIsDataOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isLayoutOpen, setIsLayoutOpen] = useState(false);
+  const [isSectionsOpen, setIsSectionsOpen] = useState(false);
+  const [isEmbedsOpen, setIsEmbedsOpen] = useState(false);
+  const [isIconsOpen, setIsIconsOpen] = useState(false);
+  const [isTypographyOpen, setIsTypographyOpen] = useState(false);
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
+  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  const [isScrollEffectsOpen, setIsScrollEffectsOpen] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isComponentsOpen, setIsComponentsOpen] = useState(false);
   const [isTokensOpen, setIsTokensOpen] = useState(false);
   const [isAssetsOpen, setIsAssetsOpen] = useState(false);
@@ -95,6 +123,12 @@ function App() {
       <Toolbar
         onExportClick={() => setIsExportOpen(true)}
         onOpenProjects={() => setIsProjectsOpen(true)}
+        onOpenTemplates={() => setIsTemplatesOpen(true)}
+        onOpenForms={() => setIsFormsOpen(true)}
+        onOpenNavigation={() => setIsNavOpen(true)}
+        onOpenDataDisplay={() => setIsDataOpen(true)}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenLayoutAction={() => setIsLayoutOpen(true)}
         onOpenComponents={() => setIsComponentsOpen(true)}
         onOpenTokens={() => setIsTokensOpen(true)}
         onOpenAssets={() => setIsAssetsOpen(true)}
@@ -105,6 +139,14 @@ function App() {
         onOpenCMS={() => setIsCMSOpen(true)}
         onOpenEcommerce={() => setIsEcommerceOpen(true)}
         onOpenDeploy={() => setIsDeployOpen(true)}
+        onOpenSections={() => setIsSectionsOpen(true)}
+        onOpenEmbeds={() => setIsEmbedsOpen(true)}
+        onOpenIcons={() => setIsIconsOpen(true)}
+        onOpenTypography={() => setIsTypographyOpen(true)}
+        onOpenAccessibility={() => setIsAccessibilityOpen(true)}
+        onOpenImageEditor={() => setIsImageEditorOpen(true)}
+        onOpenScrollEffects={() => setIsScrollEffectsOpen(true)}
+        onOpenTheme={() => setIsThemeOpen(true)}
       />
 
       <div className="app__body" style={{ position: "relative" }}>
@@ -160,6 +202,20 @@ function App() {
 
       {/* Feature Modals */}
       <ExportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
+      <TemplateModal isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} />
+      <FormControlsPanel isOpen={isFormsOpen} onClose={() => setIsFormsOpen(false)} />
+      <NavigationPanel isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} />
+      <DataDisplayPanel isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
+      <FeedbackPanel isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
+      <LayoutActionPanel isOpen={isLayoutOpen} onClose={() => setIsLayoutOpen(false)} />
+      <PageSectionsPanel isOpen={isSectionsOpen} onClose={() => setIsSectionsOpen(false)} />
+      <EmbedPanel isOpen={isEmbedsOpen} onClose={() => setIsEmbedsOpen(false)} />
+      <IconLibraryPanel isOpen={isIconsOpen} onClose={() => setIsIconsOpen(false)} />
+      <TypographyPanel isOpen={isTypographyOpen} onClose={() => setIsTypographyOpen(false)} />
+      <AccessibilityPanel isOpen={isAccessibilityOpen} onClose={() => setIsAccessibilityOpen(false)} />
+      <ImageEditorPanel isOpen={isImageEditorOpen} onClose={() => setIsImageEditorOpen(false)} />
+      <ScrollEffectsPanel isOpen={isScrollEffectsOpen} onClose={() => setIsScrollEffectsOpen(false)} />
+      <ThemePanel isOpen={isThemeOpen} onClose={() => setIsThemeOpen(false)} />
       {features.projects && isProjectsOpen && <ProjectManager onClose={() => setIsProjectsOpen(false)} onLoadProject={handleLoadProject} />}
       {features.componentLibrary && isComponentsOpen && <ComponentLibraryPanel onClose={() => setIsComponentsOpen(false)} />}
       {features.designTokens && isTokensOpen && <DesignTokensPanel onClose={() => setIsTokensOpen(false)} />}
