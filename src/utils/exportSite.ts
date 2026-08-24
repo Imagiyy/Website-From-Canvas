@@ -544,51 +544,87 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "dataCard": {
-      const content = (node.content as any) || {};
-      const title = content.title || "Feature Card";
-      const subtitle = content.subtitle || "Productivity Module";
-      const badge = content.badge || "PRO";
-      const text = content.text || "Self-contained card container grouping related content and actions.";
-      const buttonText = content.buttonText || "Learn More →";
-
-      const showTitle = content.showTitle !== false;
-      const showSubtitle = content.showSubtitle !== false;
-      const showBadge = content.showBadge !== false;
-      const showText = content.showText !== false;
-      const showButton = content.showButton !== false;
-
-      const titleHtml = showTitle ? `<div style="font-weight:700; font-size:15px; color:#fff;">${escapeHtml(title)}</div>` : '';
-      const subHtml = showSubtitle ? `<div style="font-size:11px; color:#8888a8; margin-top:2px;">${escapeHtml(subtitle)}</div>` : '';
-      const badgeHtml = showBadge ? `<span style="padding:2px 8px; border-radius:12px; background:rgba(59,130,246,0.2); border:1px solid #3b82f6; color:#60a5fa; font-size:10px; font-weight:700;">${escapeHtml(badge)}</span>` : '';
-      const textHtml = showText ? `<div style="font-size:12px; color:#a0a0c0; margin:8px 0; line-height:1.4;">${escapeHtml(text)}</div>` : '';
-      const btnHtml = showButton ? `<div style="display:flex; justify-content:flex-end;"><button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(buttonText)}</button></div>` : '';
+      const content = resolveNodeContent(node);
+      const titleHtml = content.showTitle ? `<div style="font-weight:700; font-size:15px; color:#fff;">${escapeHtml(content.title || "")}</div>` : '';
+      const subHtml = content.showSubtitle ? `<div style="font-size:11px; color:#8888a8; margin-top:2px;">${escapeHtml(content.subtitle || "")}</div>` : '';
+      const badgeHtml = content.showBadge ? `<span style="padding:2px 8px; border-radius:12px; background:rgba(59,130,246,0.2); border:1px solid #3b82f6; color:#60a5fa; font-size:10px; font-weight:700;">${escapeHtml(content.badge || "")}</span>` : '';
+      const textHtml = content.showText ? `<div style="font-size:12px; color:#a0a0c0; margin:8px 0; line-height:1.4;">${escapeHtml(content.text || "")}</div>` : '';
+      const btnHtml = content.showButton ? `<div style="display:flex; justify-content:flex-end;"><button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(content.buttonText || "")}</button></div>` : '';
 
       elementHTML = `${indent}<article id="node-${nid}" class="canvas-element data-card-node" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div>${titleHtml}${subHtml}</div>${badgeHtml}</div>\n${indent}  ${textHtml}\n${indent}  ${btnHtml}\n${indent}</article>`;
       break;
     }
 
     case "dataTable": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-table-node" style="background: #181826; border-radius: 8px; overflow: hidden; font-size: 12px;">\n${indent}  <table style="width: 100%; border-collapse: collapse; text-align: left; color: #fff;">\n${indent}    <thead><tr style="background: rgba(255,255,255,0.05); color: #8888a8;"><th style="padding: 8px 12px;">USER</th><th style="padding: 8px 12px;">ROLE</th><th style="padding: 8px 12px;">STATUS</th></tr></thead>\n${indent}    <tbody>\n${indent}      <tr style="border-top: 1px solid rgba(255,255,255,0.05);"><td style="padding: 8px 12px; font-weight: 600;">Alex Rivera</td><td style="padding: 8px 12px; color: #a0a0c0;">Frontend Lead</td><td style="padding: 8px 12px;"><span style="color: #34d399;">● Active</span></td></tr>\n${indent}      <tr style="border-top: 1px solid rgba(255,255,255,0.05);"><td style="padding: 8px 12px; font-weight: 600;">Sarah Chen</td><td style="padding: 8px 12px; color: #a0a0c0;">Product Designer</td><td style="padding: 8px 12px;"><span style="color: #34d399;">● Active</span></td></tr>\n${indent}    </tbody>\n${indent}  </table>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const rowsHtml = content.rows.map((row: any, idx: number) => {
+        const name = row.name || row.id || "Row " + (idx + 1);
+        const role = row.role || row.status || "Item";
+        const status = row.status || "Active";
+        const isSuccess = status === "Active" || status === "Completed";
+        return `
+        <tr style="border-top:1px solid rgba(255,255,255,0.05); background:${idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent'};">
+          <td style="padding:8px 12px; font-weight:600;">${escapeHtml(name)}</td>
+          <td style="padding:8px 12px; color:#a0a0c0;">${escapeHtml(role)}</td>
+          <td style="padding:8px 12px;"><span style="padding:2px 6px; border-radius:10px; background:${isSuccess ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}; color:${isSuccess ? '#34d399' : '#f87171'}; font-size:10px; font-weight:600;">● ${escapeHtml(status)}</span></td>
+          <td style="padding:8px 12px; text-align:right; color:#3b82f6; font-weight:600;">Edit</td>
+        </tr>
+      `;
+      }).join("");
+
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-table-node" style="background:#181826; border-radius:8px; overflow:hidden; font-size:12px;">\n${indent}  <table style="width:100%; border-collapse:collapse; text-align:left; color:#fff;">\n${indent}    <thead><tr style="background:rgba(255,255,255,0.05); color:#8888a8;"><th style="padding:8px 12px;">USER</th><th style="padding:8px 12px;">ROLE</th><th style="padding:8px 12px;">STATUS</th><th style="padding:8px 12px; text-align:right;">ACTION</th></tr></thead>\n${indent}    <tbody>${rowsHtml}</tbody>\n${indent}  </table>\n${indent}</div>`;
       break;
     }
 
     case "dataList": {
-      elementHTML = `${indent}<ul id="node-${nid}" class="canvas-element data-list-node" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #181826; border-radius: 8px; list-style: none; margin: 0;">\n${indent}  <li style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; color: #fff; font-size: 12px;"><span>👤 New deployment pushed</span><span style="color: #666688; font-size: 10px;">2m ago</span></li>\n${indent}  <li style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; color: #fff; font-size: 12px;"><span>💬 New comment on Navbar</span><span style="color: #666688; font-size: 10px;">15m ago</span></li>\n${indent}</ul>`;
+      const content = resolveNodeContent(node);
+      const itemsHtml = content.items.map((item: any, idx: number) => {
+        const label = typeof item === "string" ? item : item.label || item.title || "Item " + (idx + 1);
+        const avatar = typeof item === "object" ? item.avatar || item.icon || "👤" : "👤";
+        const time = typeof item === "object" ? item.time || "Just now" : "";
+        const desc = typeof item === "object" ? item.desc || "" : "";
+        return `
+        <li style="display:flex; gap:10px; padding:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:6px; color:#fff; font-size:12px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:#2a2a46; display:flex; align-items:center; justify-content:center; font-size:13px;">${avatar}</div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between;"><span style="font-weight:600;">${escapeHtml(label)}</span>${time ? `<span style="color:#666688; font-size:10px;">${escapeHtml(time)}</span>` : ''}</div>
+            ${desc ? `<div style="font-size:11px; color:#8888a8; margin-top:2px;">${escapeHtml(desc)}</div>` : ''}
+          </div>
+        </li>
+      `;
+      }).join("");
+
+      elementHTML = `${indent}<ul id="node-${nid}" class="canvas-element data-list-node" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:#181826; border-radius:8px; list-style:none; margin:0;">\n${indent}  <div style="font-size:11px; font-weight:700; color:#8888a8; text-transform:uppercase; margin-bottom:4px;">Activity Feed & Logs</div>\n${indent}  ${itemsHtml}\n${indent}</ul>`;
       break;
     }
 
     case "dataBadge": {
-      elementHTML = `${indent}<span id="node-${nid}" class="canvas-element data-badge-node" style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; background: #10b98122; border: 1px solid #10b981; color: #34d399; font-weight: 700; border-radius: 16px; font-size: 12px;">● Live Badge</span>`;
+      const content = resolveNodeContent(node);
+      const variant = content.variant;
+      const badgeBg = variant === "success" ? "#10b98122" : variant === "warning" ? "#f59e0b22" : "#3b82f622";
+      const badgeBorder = variant === "success" ? "#10b981" : variant === "warning" ? "#f59e0b" : "#3b82f6";
+      const badgeColor = variant === "success" ? "#34d399" : variant === "warning" ? "#fbbf24" : "#60a5fa";
+
+      elementHTML = `${indent}<span id="node-${nid}" class="canvas-element data-badge-node" style="display:inline-flex; align-items:center; justify-content:center; padding:4px 12px; background:${badgeBg}; border:1px solid ${badgeBorder}; color:${badgeColor}; font-weight:700; border-radius:16px; font-size:12px;">● ${escapeHtml(content.label || "")}</span>`;
       break;
     }
 
     case "dataAccordion": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-accordion-node" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #181826; border-radius: 8px; color: #fff; font-size: 12px;">\n${indent}  <details style="border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px;"><summary style="cursor: pointer; font-weight: 600;">What is CanvasSite Engine?</summary><p style="margin-top: 6px; color: #a0a0c0;">Visual web app canvas builder with multi-framework code exporters.</p></details>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const itemsHtml = content.accordions.map((sec: any, idx: number) => `
+        <details ${idx === 0 ? 'open' : ''} style="border:1px solid rgba(255,255,255,0.1); border-radius:6px; overflow:hidden;">
+          <summary style="cursor:pointer; font-weight:600; padding:8px 12px; background:rgba(255,255,255,0.04); font-size:12px;">${escapeHtml(sec.title || "")}</summary>
+          <p style="padding:8px 12px; margin:0; font-size:11px; color:#a0a0c0; line-height:1.4; background:rgba(0,0,0,0.2); border-top:1px solid rgba(255,255,255,0.05);">${escapeHtml(sec.content || sec.body || "")}</p>
+        </details>
+      `).join("");
+
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-accordion-node" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:#181826; border-radius:8px; color:#fff; font-size:12px;">\n${indent}  ${itemsHtml}\n${indent}</div>`;
       break;
     }
 
     case "dataTooltip": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-tooltip-node" style="position: relative; display: inline-flex; align-items: center; gap: 6px; color: #93c5fd; font-size: 12px;">\n${indent}  <span>💡 Hover for Details</span>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element data-tooltip-node" style="position:relative; display:inline-flex; align-items:center; gap:6px; color:#93c5fd; font-size:12px;">\n${indent}  <span>💡 ${escapeHtml(content.trigger || "")}</span>\n${indent}  <div style="position:absolute; bottom:110%; left:50%; transform:translateX(-50%); background:#111827; border:1px solid #3b82f6; border-radius:6px; padding:6px 10px; color:#fff; font-size:11px; white-space:nowrap;">${escapeHtml(content.text || "")}</div>\n${indent}</div>`;
       break;
     }
 
@@ -671,52 +707,93 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "sectionHero": {
-      const content = (node.content as any) || {};
-      const title = content.title || content.text || "Build Something Amazing";
-      const subtitle = content.subtitle || "Create stunning websites with our intuitive builder.";
-      const primaryText = content.primaryButtonText || "Get Started";
-      const secondaryText = content.secondaryButtonText || "Learn More";
-
-      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-hero" style="width:100%; background:linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); padding:48px 24px; text-align:center; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-sizing:border-box;">\n${indent}  <h1 style="font-size:32px; font-weight:800; line-height:1.1; margin:0;">${escapeHtml(title)}</h1>\n${indent}  <p style="color:#94a3b8; font-size:16px; max-width:80%; line-height:1.5; margin:0;">${escapeHtml(subtitle)}</p>\n${indent}  <div style="display:flex; gap:12px; margin-top:8px;">\n${indent}    <a href="#" style="padding:12px 28px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; text-decoration:none; border-radius:8px; font-weight:700; font-size:14px;">${escapeHtml(primaryText)}</a>\n${indent}    <a href="#" style="padding:12px 28px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#e2e8f0; text-decoration:none; border-radius:8px; font-weight:600; font-size:14px;">${escapeHtml(secondaryText)}</a>\n${indent}  </div>\n${indent}</section>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-hero" style="width:100%; background:linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); padding:48px 24px; text-align:center; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-sizing:border-box;">\n${indent}  <h1 style="font-size:32px; font-weight:800; line-height:1.1; margin:0;">${escapeHtml(content.title || "")}</h1>\n${indent}  <p style="color:#94a3b8; font-size:16px; max-width:80%; line-height:1.5; margin:0;">${escapeHtml(content.subtitle || "")}</p>\n${indent}  <div style="display:flex; gap:12px; margin-top:8px;">\n${indent}    <a href="#" style="padding:12px 28px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; text-decoration:none; border-radius:8px; font-weight:700; font-size:14px;">${escapeHtml(content.primaryButtonText || "")}</a>\n${indent}    <a href="#" style="padding:12px 28px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#e2e8f0; text-decoration:none; border-radius:8px; font-weight:600; font-size:14px;">${escapeHtml(content.secondaryButtonText || "")}</a>\n${indent}  </div>\n${indent}</section>`;
       break;
     }
 
     case "sectionPricing": {
-      const content = (node.content as any) || {};
-      const title = content.title || content.text || "Choose Your Plan";
-      const tiers = content.tiers || [
-        { name: "Starter", price: "$9", period: "/mo", cta: "Choose Starter", popular: false },
-        { name: "Pro", price: "$29", period: "/mo", cta: "Get Started", popular: true },
-        { name: "Enterprise", price: "$99", period: "/mo", cta: "Contact Sales", popular: false },
-      ];
-
-      const tiersHtml = tiers.map((tier: any) => `
-        <div style="flex:1; background:${tier.popular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)'}; border:1px solid ${tier.popular ? '#6366f1' : 'rgba(255,255,255,0.1)'}; padding:20px; border-radius:8px; text-align:left;">
-          <h3 style="font-size:18px; font-weight:700; margin:0;">${escapeHtml(tier.name)}</h3>
-          <div style="font-size:28px; font-weight:800; margin:12px 0;">${escapeHtml(tier.price)}<span style="font-size:12px; color:#94a3b8;">${escapeHtml(tier.period || "/mo")}</span></div>
-          <button style="width:100%; padding:10px; background:${tier.popular ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : '#334155'}; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">${escapeHtml(tier.cta || "Choose Plan")}</button>
+      const content = resolveNodeContent(node);
+      const tiersHtml = content.tiers.map((tier: any) => {
+        const isPopular = tier.popular || tier.featured;
+        const featuresHtml = (tier.features || []).map((f: string) => `<div style="font-size:11px; color:#94a3b8; display:flex; align-items:center; gap:6px;"><span style="color:#10b981;">✓</span> ${escapeHtml(f || "")}</div>`).join("");
+        return `
+        <div style="flex:1; max-width:32%; background:${isPopular ? 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))' : 'rgba(255,255,255,0.04)'}; border:1px solid ${isPopular ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)'}; padding:16px; border-radius:10px; display:flex; flex-direction:column; gap:8px; text-align:left;">
+          <div style="font-size:12px; font-weight:600; color:${isPopular ? '#a78bfa' : '#94a3b8'}; text-transform:uppercase;">${escapeHtml(tier.name || "")}</div>
+          <div style="font-size:28px; font-weight:800;">${escapeHtml(tier.price || "")}<span style="font-size:12px; color:#64748b;">${escapeHtml(tier.period || "/mo")}</span></div>
+          ${featuresHtml}
+          <button style="margin-top:auto; padding:8px 16px; background:${isPopular ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(255,255,255,0.08)'}; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:11px; cursor:pointer;">${escapeHtml(tier.cta || (isPopular ? "Get Started" : "Choose Plan"))}</button>
         </div>
-      `).join("");
+      `;
+      }).join("");
 
-      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-pricing" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px;">\n${indent}  <h2 style="text-align:center; font-size:24px; font-weight:700; margin-bottom:24px;">${escapeHtml(title)}</h2>\n${indent}  <div style="display:flex; gap:16px; justify-content:center;">${tiersHtml}</div>\n${indent}</section>`;
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-pricing" style="width:100%; background:#0f172a; padding:24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px;">\n${indent}  <div style="font-size:22px; font-weight:700;">${escapeHtml(content.title || "")}</div>\n${indent}  <div style="display:flex; gap:12px; width:100%; justify-content:center;">${tiersHtml}</div>\n${indent}</section>`;
       break;
     }
 
-    case "sectionTestimonials":
-    case "sectionTeam":
-    case "sectionFeatures":
-    case "sectionCTA":
-    case "sectionFooter": {
-      const content = (node.content as any) || {};
-      const title = content.title || content.text || content.brand || node.name;
-      const subtitle = content.subtitle || "";
-      const copyright = content.copyright || "© 2024 CanvasSite. All rights reserved.";
+    case "sectionTestimonials": {
+      const content = resolveNodeContent(node);
+      const reviewsHtml = content.reviews.map((r: any) => `
+        <div style="flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:12px; color:#fbbf24;">${"★".repeat(r.stars || 5)}${"☆".repeat(5 - (r.stars || 5))}</div>
+          <div style="font-size:12px; color:#cbd5e1; line-height:1.5; font-style:italic;">"${escapeHtml(r.text || "")}"</div>
+          <div>
+            <div style="font-size:12px; font-weight:600;">${escapeHtml(r.name || "")}</div>
+            <div style="font-size:10px; color:#64748b;">${escapeHtml(r.role || "")}</div>
+          </div>
+        </div>
+      `).join("");
 
-      if (node.type === "sectionFooter") {
-        elementHTML = `${indent}<footer id="node-${nid}" class="canvas-element section-footer" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; gap:16px; text-align:center;">\n${indent}  <div style="font-size:18px; font-weight:700;">${escapeHtml(title)}</div>\n${indent}  ${subtitle ? `<div style="font-size:13px; color:#94a3b8;">${escapeHtml(subtitle)}</div>` : ''}\n${indent}  <div style="font-size:12px; color:#64748b; margin-top:8px;">${escapeHtml(copyright)}</div>\n${indent}</footer>`;
-      } else {
-        elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-block" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px;">\n${indent}  <h2 style="font-size:24px; font-weight:700; margin:0;">${escapeHtml(title)}</h2>\n${indent}  ${subtitle ? `<p style="color:#94a3b8; font-size:14px; margin:0;">${escapeHtml(subtitle)}</p>` : ''}\n${indent}</section>`;
-      }
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-testimonials" style="width:100%; background:#0f172a; padding:24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px;">\n${indent}  <div style="font-size:22px; font-weight:700;">${escapeHtml(content.title || "")}</div>\n${indent}  <div style="display:flex; gap:12px; width:100%;">${reviewsHtml}</div>\n${indent}</section>`;
+      break;
+    }
+
+    case "sectionTeam": {
+      const content = resolveNodeContent(node);
+      const membersHtml = content.members.map((m: any) => `
+        <div style="width:22%; min-width:80px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:16px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, ${m.color || "#6366f1"}, ${m.color || "#6366f1"}88); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#fff;">
+            ${escapeHtml(m.name?.charAt(0) || "U")}
+          </div>
+          <div style="font-size:12px; font-weight:600; text-align:center;">${escapeHtml(m.name || "")}</div>
+          <div style="font-size:10px; color:#64748b; text-align:center;">${escapeHtml(m.role || "")}</div>
+        </div>
+      `).join("");
+
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-team" style="width:100%; background:#0f172a; padding:24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px;">\n${indent}  <div style="font-size:22px; font-weight:700;">${escapeHtml(content.title || "")}</div>\n${indent}  <div style="display:flex; gap:12px; width:100%; justify-content:center; flex-wrap:wrap;">${membersHtml}</div>\n${indent}</section>`;
+      break;
+    }
+
+    case "sectionFeatures": {
+      const content = resolveNodeContent(node);
+      const featuresHtml = content.features.map((f: any) => `
+        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:22px;">${f.icon || "⚡"}</div>
+          <div style="font-size:13px; font-weight:600;">${escapeHtml(f.title || "")}</div>
+          <div style="font-size:11px; color:#94a3b8; line-height:1.4;">${escapeHtml(f.desc || "")}</div>
+        </div>
+      `).join("");
+
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-features" style="width:100%; background:#0f172a; padding:24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px;">\n${indent}  <div style="font-size:22px; font-weight:700;">${escapeHtml(content.title || "")}</div>\n${indent}  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; width:100%;">${featuresHtml}</div>\n${indent}</section>`;
+      break;
+    }
+
+    case "sectionCTA": {
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-cta" style="width:100%; background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%); padding:32px; text-align:center; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px;">\n${indent}  <div style="font-size:28px; font-weight:800; line-height:1.1;">${escapeHtml(content.title || "")}</div>\n${indent}  <div style="font-size:14px; color:rgba(255,255,255,0.8); max-width:70%; line-height:1.5;">${escapeHtml(content.subtitle || "")}</div>\n${indent}  <div style="display:flex; gap:12px; margin-top:8px;">\n${indent}    <button style="padding:12px 28px; background:#fff; color:#4f46e5; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;">${escapeHtml(content.primaryButtonText || "")}</button>\n${indent}    <button style="padding:12px 28px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">${escapeHtml(content.secondaryButtonText || "")}</button>\n${indent}  </div>\n${indent}</section>`;
+      break;
+    }
+
+    case "sectionFooter": {
+      const content = resolveNodeContent(node);
+      const colsHtml = content.cols.map((c: any) => `
+        <div style="flex:0.7;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#94a3b8; text-transform:uppercase;">${escapeHtml(c.title || "")}</div>
+          ${(c.links || []).map((l: string) => `<div style="font-size:12px; color:#cbd5e1; margin-bottom:6px;">${escapeHtml(l || "")}</div>`).join("")}
+        </div>
+      `).join("");
+
+      elementHTML = `${indent}<footer id="node-${nid}" class="canvas-element section-footer" style="width:100%; background:#0f172a; padding:24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; gap:16px;">\n${indent}  <div style="display:flex; gap:24px; width:100%;">\n${indent}    <div style="flex:1;">\n${indent}      <div style="font-size:16px; font-weight:700; margin-bottom:8px;">${escapeHtml(content.brand || "")}</div>\n${indent}      <div style="font-size:11px; color:#64748b; line-height:1.5;">${escapeHtml(content.subtitle || "")}</div>\n${indent}    </div>\n${indent}    ${colsHtml}\n${indent}  </div>\n${indent}  <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:12px; font-size:11px; color:#475569; text-align:center;">${escapeHtml(content.copyright || "")}</div>\n${indent}</footer>`;
       break;
     }
 

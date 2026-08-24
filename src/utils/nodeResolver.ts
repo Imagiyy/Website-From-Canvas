@@ -272,6 +272,7 @@ export function resolveNodeContent(node: CanvasNode): ResolvedContent {
     maxValue: typeof c.maxValue === "number" ? c.maxValue : 100,
     step: typeof c.step === "number" ? c.step : 1,
     value: typeof c.value === "number" ? c.value : 50,
+    progressVal: typeof c.progressVal === "number" ? c.progressVal : (typeof c.progress === "number" ? c.progress : 68),
     dualValues: Array.isArray(c.dualValues) ? c.dualValues : [20, 80],
     date: c.date || "2026-08-24",
     time: c.time || "12:00",
