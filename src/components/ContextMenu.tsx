@@ -24,6 +24,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
   const deleteSelected = useCanvasStore((s) => s.deleteSelected);
   const groupSelected = useCanvasStore((s) => s.groupSelected);
   const ungroupSelected = useCanvasStore((s) => s.ungroupSelected);
+  const explodeFeatureNodeToNodes = useCanvasStore((s) => s.explodeFeatureNodeToNodes);
   const bringToFront = useCanvasStore((s) => s.bringToFront);
   const moveForward = useCanvasStore((s) => s.moveForward);
   const moveBackward = useCanvasStore((s) => s.moveBackward);
@@ -222,6 +223,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, targetNodeId, on
               <span className="context-menu__shortcut">Ctrl+Shift+G</span>
             </button>
           )}
+
+          <button
+            className="context-menu__item"
+            style={{ color: "#a78bfa", fontWeight: 600 }}
+            onClick={() => runAction(() => explodeFeatureNodeToNodes(targetNodeId || undefined))}
+          >
+            <span className="context-menu__label">💥 Break Down Component</span>
+          </button>
 
           {(canGroup || canUngroup) && <div className="context-menu__divider" />}
 

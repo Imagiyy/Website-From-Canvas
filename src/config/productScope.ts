@@ -11,7 +11,11 @@ export type FeatureFlagKey =
   | "versionHistory"
   | "assetManager"
   | "designTokens"
-  | "componentLibrary";
+  | "componentLibrary"
+  | "motionTimelines"
+  | "localization"
+  | "pluginEcosystem"
+  | "webhooks";
 
 export interface FeatureFlags {
   projects: boolean;
@@ -27,6 +31,10 @@ export interface FeatureFlags {
   assetManager: boolean;
   designTokens: boolean;
   componentLibrary: boolean;
+  motionTimelines: boolean;
+  localization: boolean;
+  pluginEcosystem: boolean;
+  webhooks: boolean;
 }
 
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
@@ -43,6 +51,10 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   assetManager: true,
   designTokens: true,
   componentLibrary: true,
+  motionTimelines: true,
+  localization: true,
+  pluginEcosystem: true,
+  webhooks: true,
 };
 
 export const PRODUCT_SCOPE = {

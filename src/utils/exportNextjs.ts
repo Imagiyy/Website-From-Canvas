@@ -1,6 +1,7 @@
 // Export to Next.js Pages — 4.1
 import type { NodesById, CanvasNode, PagesById, PageSEO } from "../types/canvas";
 import { useInteractionStore } from "../store/interactionStore";
+import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 
 function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Page";
@@ -14,25 +15,20 @@ function getNodeWithInteractions(node: CanvasNode): CanvasNode {
   return node;
 }
 
-function styleToCSS(node: CanvasNode, nodes?: NodesById): string {
+function styleToCSS(node: CanvasNode, nodes: NodesById): string {
+  const box = resolveNodeBox(node, nodes);
+  const s = resolveNodeStyle(node);
   const rules: string[] = [];
-  let g = node.geometry;
-  if (node.parentId && nodes && nodes[node.parentId]) {
-    const parentGeom = nodes[node.parentId].geometry;
-    g = { ...g, x: g.x - parentGeom.x, y: g.y - parentGeom.y };
-  }
-  const s = node.style;
 
   rules.push(`  position: absolute;`);
-  rules.push(`  left: ${Math.round(g.x)}px;`);
-  rules.push(`  top: ${Math.round(g.y)}px;`);
-  rules.push(`  width: ${Math.round(g.width)}px;`);
-  rules.push(`  height: ${Math.round(g.height)}px;`);
+  rules.push(`  left: ${Math.round(box.relativeX)}px;`);
+  rules.push(`  top: ${Math.round(box.relativeY)}px;`);
+  rules.push(`  width: ${Math.round(box.width)}px;`);
+  rules.push(`  height: ${Math.round(box.height)}px;`);
 
-  if (g.rotation) rules.push(`  transform: rotate(${g.rotation}deg);`);
+  if (box.rotation) rules.push(`  transform: rotate(${box.rotation}deg);`);
 
-  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
-  if (isBoxElement) {
+  if (!s.isVectorShape) {
     if (s.gradient) {
       rules.push(`  background: linear-gradient(${s.gradient.angle ?? 135}deg, ${s.gradient.startColor}, ${s.gradient.endColor});`);
     } else if (s.fill && s.fill !== "transparent") {
@@ -175,14 +171,12 @@ export default function RootLayout({
     const isIndex = page.slug === "index";
     const folder = isIndex ? "app" : `app/${page.slug}`;
 
-    const topLevel = Object.values(page.nodes)
-      .filter((n) => n.parentId === null)
-      .sort((a, b) => a.order - b.order);
+    const topLevel = getRenderTree(page.nodes);
 
     // Generate CSS Module
     const cssRules = Object.values(page.nodes).map((node) => {
       const className = `node_${safeId(node.id).slice(0, 8)}`;
-      return `.${className} {\n${styleToCSS(node)}\n}`;
+      return `.${className} {\n${styleToCSS(node, page.nodes)}\n}`;
     });
 
     files.push({

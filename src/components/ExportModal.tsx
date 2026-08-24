@@ -27,29 +27,45 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [imageScale, setImageScale] = useState<number>(2);
+  const [buildTimestamp, setBuildTimestamp] = useState<number>(Date.now());
 
-  // Generate files according to active format
+  // Ensure active page in pages map always has the latest canvas nodes
+  const syncedPages = useMemo(() => {
+    const safeActiveId = activePageId || Object.keys(pages)[0] || "page-1";
+    return {
+      ...pages,
+      [safeActiveId]: {
+        ...pages[safeActiveId],
+        id: safeActiveId,
+        name: pages[safeActiveId]?.name || "Home",
+        slug: pages[safeActiveId]?.slug || "index",
+        nodes: nodes,
+      },
+    };
+  }, [pages, activePageId, nodes]);
+
+  // Generate files dynamically each time format, canvas nodes, pages, or buildTimestamp updates
   const exportFiles = useMemo(() => {
     if (!isOpen) return [];
 
     switch (format) {
       case "html": {
-        const { pageFiles, css } = generateMultiPageSiteCode(pages, activePageId, nodes);
+        const { pageFiles, css } = generateMultiPageSiteCode(syncedPages, activePageId, nodes);
         const files = pageFiles.map((f) => ({ filename: f.filename, content: f.html }));
         files.push({ filename: "style.css", content: css });
         return files;
       }
       case "react": {
-        return exportToReact(pages, activePageId, nodes);
+        return exportToReact(syncedPages, activePageId, nodes);
       }
       case "nextjs": {
-        return exportToNextjs(pages, activePageId, nodes, pageSEO);
+        return exportToNextjs(syncedPages, activePageId, nodes, pageSEO);
       }
       case "tailwind": {
-        return exportToTailwind(pages, activePageId, nodes);
+        return exportToTailwind(syncedPages, activePageId, nodes);
       }
       case "figma": {
-        const json = exportToFigma(pages, activePageId, nodes);
+        const json = exportToFigma(syncedPages, activePageId, nodes);
         return [{ filename: "canvas-design.figma.json", content: json }];
       }
       case "image": {
@@ -59,7 +75,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
       default:
         return [];
     }
-  }, [format, pages, activePageId, nodes, pageSEO, isOpen]);
+  }, [format, syncedPages, activePageId, nodes, pageSEO, isOpen, buildTimestamp]);
 
   // Set default selected file whenever exportFiles changes
   const activeFile = useMemo(() => {
@@ -137,9 +153,19 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <span style={{ fontSize: 12, color: "#8888a8" }}>Choose framework or design output format</span>
             </div>
           </div>
-          <button className="export-modal__close-btn" onClick={onClose}>
-            ✕
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className="panel-btn panel-btn--small"
+              onClick={() => setBuildTimestamp(Date.now())}
+              title="Force re-generate fresh code bundle matching exact current canvas state"
+              style={{ fontSize: 11 }}
+            >
+              🔄 Refresh Build Code
+            </button>
+            <button className="export-modal__close-btn" onClick={onClose}>
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Format Selector Tabs */}

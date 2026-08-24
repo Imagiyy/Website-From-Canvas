@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import type { CanvasNode } from "../../types/canvas";
+import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
 }
 
 export const DataDisplayNode: React.FC<Props> = ({ node }) => {
-  const { fill, cornerRadius, border, opacity } = node.style;
-  const content = node.content as any;
+  const resolvedStyle = resolveNodeStyle(node);
+  const content = resolveNodeContent(node);
 
   // Local state for Play Mode testing
   const [expandedAccordion, setExpandedAccordion] = useState<number | null>(0);
@@ -18,10 +19,10 @@ export const DataDisplayNode: React.FC<Props> = ({ node }) => {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
-    backgroundColor: fill || "#181826",
-    borderRadius: cornerRadius ? `${cornerRadius}px` : "8px",
-    border: border ? `${border.width}px ${border.style} ${border.color}` : "1px solid rgba(255,255,255,0.15)",
-    opacity: opacity ?? 1,
+    backgroundColor: resolvedStyle.fill || "#181826",
+    borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
+    border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
+    opacity: resolvedStyle.opacity ?? 1,
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
@@ -35,30 +36,42 @@ export const DataDisplayNode: React.FC<Props> = ({ node }) => {
 
   switch (node.type) {
     case "dataCard": {
+      const showTitle = content?.showTitle !== false;
+      const showSubtitle = content?.showSubtitle !== false;
+      const showBadge = content?.showBadge !== false;
+      const showText = content?.showText !== false;
+      const showButton = content?.showButton !== false;
+
       return (
         <div style={{ ...containerStyle, padding: 16, justifyContent: "space-between" }}>
           {/* Card Header & Badge */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>{content?.title || "Feature Card"}</div>
-              <div style={{ fontSize: 11, color: "#8888a8", marginTop: 2 }}>{content?.subtitle || "Productivity Module"}</div>
+              {showTitle && <div style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>{content?.title || "Feature Card"}</div>}
+              {showSubtitle && <div style={{ fontSize: 11, color: "#8888a8", marginTop: 2 }}>{content?.subtitle || "Productivity Module"}</div>}
             </div>
-            <span style={{ padding: "2px 8px", borderRadius: 12, background: "rgba(59,130,246,0.2)", border: "1px solid #3b82f6", color: "#60a5fa", fontSize: 10, fontWeight: 700 }}>
-              {content?.badge || "PRO"}
-            </span>
+            {showBadge && (
+              <span style={{ padding: "2px 8px", borderRadius: 12, background: "rgba(59,130,246,0.2)", border: "1px solid #3b82f6", color: "#60a5fa", fontSize: 10, fontWeight: 700 }}>
+                {content?.badge || "PRO"}
+              </span>
+            )}
           </div>
 
           {/* Description */}
-          <div style={{ fontSize: 12, color: "#a0a0c0", lineHeight: 1.4, margin: "8px 0" }}>
-            {content?.text || "Self-contained card container grouping related text, badges, and primary action buttons."}
-          </div>
+          {showText && (
+            <div style={{ fontSize: 12, color: "#a0a0c0", lineHeight: 1.4, margin: "8px 0" }}>
+              {content?.text || "Self-contained card container grouping related text, badges, and primary action buttons."}
+            </div>
+          )}
 
           {/* Action Footer */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "#fff", border: "none", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
-              {content?.buttonText || "Learn More →"}
-            </button>
-          </div>
+          {showButton && (
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "#fff", border: "none", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                {content?.buttonText || "Learn More →"}
+              </button>
+            </div>
+          )}
         </div>
       );
     }

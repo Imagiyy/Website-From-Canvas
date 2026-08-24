@@ -35,6 +35,10 @@ import { AccessibilityPanel } from "./components/panels/AccessibilityPanel";
 import { ImageEditorPanel } from "./components/panels/ImageEditorPanel";
 import { ScrollEffectsPanel } from "./components/panels/ScrollEffectsPanel";
 import { ThemePanel } from "./components/panels/ThemePanel";
+import { MotionTimelinePanel } from "./components/panels/MotionTimelinePanel";
+import { LocalizationPanel } from "./components/panels/LocalizationPanel";
+import { PluginMarketplacePanel } from "./components/panels/PluginMarketplacePanel";
+import { WebhookPanel } from "./components/panels/WebhookPanel";
 
 import { useCanvasStore } from "./store/canvasStore";
 import { useProjectStore } from "./store/projectStore";
@@ -67,6 +71,10 @@ function App() {
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [isScrollEffectsOpen, setIsScrollEffectsOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isMotionOpen, setIsMotionOpen] = useState(false);
+  const [isLocalizationOpen, setIsLocalizationOpen] = useState(false);
+  const [isPluginsOpen, setIsPluginsOpen] = useState(false);
+  const [isWebhooksOpen, setIsWebhooksOpen] = useState(false);
   const [isComponentsOpen, setIsComponentsOpen] = useState(false);
   const [isTokensOpen, setIsTokensOpen] = useState(false);
   const [isAssetsOpen, setIsAssetsOpen] = useState(false);
@@ -147,6 +155,10 @@ function App() {
         onOpenImageEditor={() => setIsImageEditorOpen(true)}
         onOpenScrollEffects={() => setIsScrollEffectsOpen(true)}
         onOpenTheme={() => setIsThemeOpen(true)}
+        onOpenMotion={() => setIsMotionOpen(true)}
+        onOpenLocalization={() => setIsLocalizationOpen(true)}
+        onOpenPlugins={() => setIsPluginsOpen(true)}
+        onOpenWebhooks={() => setIsWebhooksOpen(true)}
       />
 
       <div className="app__body" style={{ position: "relative" }}>
@@ -216,6 +228,10 @@ function App() {
       <ImageEditorPanel isOpen={isImageEditorOpen} onClose={() => setIsImageEditorOpen(false)} />
       <ScrollEffectsPanel isOpen={isScrollEffectsOpen} onClose={() => setIsScrollEffectsOpen(false)} />
       <ThemePanel isOpen={isThemeOpen} onClose={() => setIsThemeOpen(false)} />
+      <MotionTimelinePanel isOpen={isMotionOpen} onClose={() => setIsMotionOpen(false)} />
+      <LocalizationPanel isOpen={isLocalizationOpen} onClose={() => setIsLocalizationOpen(false)} />
+      <PluginMarketplacePanel isOpen={isPluginsOpen} onClose={() => setIsPluginsOpen(false)} />
+      <WebhookPanel isOpen={isWebhooksOpen} onClose={() => setIsWebhooksOpen(false)} />
       {features.projects && isProjectsOpen && <ProjectManager onClose={() => setIsProjectsOpen(false)} onLoadProject={handleLoadProject} />}
       {features.componentLibrary && isComponentsOpen && <ComponentLibraryPanel onClose={() => setIsComponentsOpen(false)} />}
       {features.designTokens && isTokensOpen && <DesignTokensPanel onClose={() => setIsTokensOpen(false)} />}

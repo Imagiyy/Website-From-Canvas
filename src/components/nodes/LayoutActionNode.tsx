@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import type { CanvasNode } from "../../types/canvas";
+import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
 }
 
 export const LayoutActionNode: React.FC<Props> = ({ node }) => {
-  const { fill, cornerRadius, border, opacity } = node.style;
-  const content = node.content as any;
+  const resolvedStyle = resolveNodeStyle(node);
+  const content = resolveNodeContent(node);
 
   // Local state for Play Mode interactions
   const [activeSlide, setActiveSlide] = useState<number>(0);
@@ -18,9 +19,9 @@ export const LayoutActionNode: React.FC<Props> = ({ node }) => {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
-    backgroundColor: fill || "#181826",
-    borderRadius: cornerRadius ? `${cornerRadius}px` : "8px",
-    border: border ? `${border.width}px ${border.style} ${border.color}` : "1px solid rgba(255,255,255,0.15)",
+    backgroundColor: resolvedStyle.fill || "#181826",
+    borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
+    border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
     opacity: opacity ?? 1,
     overflow: "hidden",
     display: "flex",

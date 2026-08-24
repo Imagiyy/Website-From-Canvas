@@ -2,6 +2,7 @@
 // Supports: components, pen tool, effects, layout, interactions, comments, CMS, e-commerce, SEO
 
 export type NodeId = string;
+export type BreakpointId = "desktop" | "tablet" | "mobile";
 
 export type ElementType =
   | "rectangle"
@@ -420,6 +421,17 @@ export interface CanvasNode {
     easing?: string;
   };
 
+  // Advanced Motion & Physics
+  motionSequenceId?: string;
+  springConfig?: SpringConfig;
+
+  // Localization & RTL
+  localeRules?: LocaleVisibilityRule;
+  translationKey?: string;
+
+  // Webhook action link
+  webhookId?: string;
+
   // Image editing filters (Phase 2)
   imageFilters?: {
     brightness?: number; // 0-200
@@ -569,4 +581,104 @@ export interface ProjectData {
   components: Record<string, ComponentDefinition>;
   seo: Record<string, PageSEO>;
   assets: AssetItem[];
+}
+
+// ---------- Advanced Motion & Keyframe Timelines ----------
+
+export type KeyframeProperty = "x" | "y" | "opacity" | "scale" | "rotation" | "blur";
+export type KeyframeEasing = "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+
+export interface SpringConfig {
+  tension: number;
+  friction: number;
+  mass: number;
+  stiffness?: number;
+  damping?: number;
+}
+
+export interface MotionKeyframe {
+  id: string;
+  timeMs: number;
+  property: KeyframeProperty;
+  value: number;
+  easing: KeyframeEasing;
+  springConfig?: SpringConfig;
+}
+
+export interface AnimationTrack {
+  id: string;
+  nodeId: NodeId;
+  property: KeyframeProperty;
+  keyframes: MotionKeyframe[];
+}
+
+export interface TimelineSequence {
+  id: string;
+  name: string;
+  durationMs: number;
+  loop: boolean;
+  autoPlay: boolean;
+  scrollScrub: boolean;
+  scrollTriggerOffset: number;
+  tracks: AnimationTrack[];
+}
+
+// ---------- Localization & Multi-Language Architecture ----------
+
+export interface Locale {
+  code: string;
+  name: string;
+  direction: "ltr" | "rtl";
+  currency: string;
+  dateFormat: string;
+  isDefault?: boolean;
+}
+
+export interface TranslationKey {
+  id: string;
+  key: string;
+  translations: Record<string, string>;
+}
+
+export interface LocaleVisibilityRule {
+  targetLocaleCodes: string[];
+  targetCountries: string[];
+  condition: "showIf" | "hideIf";
+}
+
+// ---------- Extension Ecosystem & Developer APIs ----------
+
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  icon: string;
+  category: "tools" | "generators" | "assets" | "integrations";
+  status: "installed" | "active" | "disabled";
+  permissions: string[];
+  mainScript?: string;
+}
+
+export interface WebhookEndpoint {
+  id: string;
+  name: string;
+  service: "zapier" | "supabase" | "make" | "custom";
+  url: string;
+  events: ("form_submit" | "cms_update" | "ecom_order")[];
+  headers: Record<string, string>;
+  enabled: boolean;
+  createdAt: number;
+}
+
+export interface WebhookLog {
+  id: string;
+  webhookId: string;
+  event: string;
+  timestamp: number;
+  status: "success" | "error";
+  statusCode?: number;
+  responseBody?: string;
+  payload: Record<string, any>;
 }

@@ -1,17 +1,18 @@
 import React, { useState } from "react";
 import type { CanvasNode } from "../../types/canvas";
+import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
 }
 
 export const FormControlsNode: React.FC<Props> = ({ node }) => {
-  const { fill, cornerRadius, border, opacity } = node.style;
-  const content = node.content as any;
+  const resolvedStyle = resolveNodeStyle(node);
+  const content = resolveNodeContent(node);
 
   // Local state for interactive controls in Play Mode
-  const [val, setVal] = useState<any>(content?.defaultValue ?? "");
-  const [rating, setRating] = useState<number>(content?.rating ?? 4);
+  const [val, setVal] = useState<any>(content.defaultValue);
+  const [rating, setRating] = useState<number>(content.rating);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [isChecked, setIsChecked] = useState<boolean>(true);
   const [signatureStrokes, setSignatureStrokes] = useState<boolean>(false);
@@ -20,10 +21,10 @@ export const FormControlsNode: React.FC<Props> = ({ node }) => {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
-    backgroundColor: fill || "#1e1e2e",
-    borderRadius: cornerRadius ? `${cornerRadius}px` : "8px",
-    border: border ? `${border.width}px ${border.style} ${border.color}` : "1px solid rgba(255,255,255,0.15)",
-    opacity: opacity ?? 1,
+    backgroundColor: resolvedStyle.fill || "#1e1e2e",
+    borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
+    border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
+    opacity: resolvedStyle.opacity ?? 1,
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",

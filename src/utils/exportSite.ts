@@ -4,6 +4,7 @@ import { getPolygonPoints } from "../components/nodes/PolygonNode";
 import { getStarPoints } from "../components/nodes/StarNode";
 import { getPolygonVertices } from "../components/nodes/Shape3DNode";
 import { useInteractionStore } from "../store/interactionStore";
+import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 
 export interface ExportedSiteCode {
   html: string;
@@ -34,68 +35,54 @@ function getNodeWithInteractions(node: CanvasNode): CanvasNode {
   return node;
 }
 
-/** Generates CSS rules for a node's geometry & style */
-function generateNodeCSSRules(node: CanvasNode, nodes: NodesById, geom?: Partial<Geometry>, style?: Partial<Style>, nodeType?: string): string {
+/** Generates CSS rules for a node's geometry & style using Single Source of Truth nodeResolver */
+function generateNodeCSSRules(node: CanvasNode, nodes: NodesById, breakpoint: import("../types/canvas").BreakpointId = "desktop"): string {
+  const box = resolveNodeBox(node, nodes, breakpoint);
+  const style = resolveNodeStyle(node, breakpoint);
   const rules: string[] = [];
 
-  let effectiveGeom = geom;
-  if (node.parentId && nodes[node.parentId] && geom) {
-    const parentGeom = nodes[node.parentId].geometry;
-    effectiveGeom = {
-      ...geom,
-      x: (geom.x ?? 0) - parentGeom.x,
-      y: (geom.y ?? 0) - parentGeom.y,
-    };
+  rules.push(`  left: ${Math.round(box.relativeX)}px;`);
+  rules.push(`  top: ${Math.round(box.relativeY)}px;`);
+  rules.push(`  width: ${Math.round(box.width)}px;`);
+  rules.push(`  height: ${Math.round(box.height)}px;`);
+  if (box.rotation !== undefined && box.rotation !== 0) {
+    rules.push(`  transform: rotate(${Math.round(box.rotation)}deg);`);
   }
 
-  if (effectiveGeom) {
-    if (effectiveGeom.x !== undefined) rules.push(`  left: ${Math.round(effectiveGeom.x)}px;`);
-    if (effectiveGeom.y !== undefined) rules.push(`  top: ${Math.round(effectiveGeom.y)}px;`);
-    if (effectiveGeom.width !== undefined) rules.push(`  width: ${Math.round(effectiveGeom.width)}px;`);
-    if (effectiveGeom.height !== undefined) rules.push(`  height: ${Math.round(effectiveGeom.height)}px;`);
-    if (effectiveGeom.rotation !== undefined && effectiveGeom.rotation !== 0) {
-      rules.push(`  transform: rotate(${Math.round(effectiveGeom.rotation)}deg);`);
+  if (!style.isVectorShape) {
+    if (style.gradient) {
+      const g = style.gradient;
+      rules.push(`  background: linear-gradient(${g.angle ?? 135}deg, ${g.startColor}, ${g.endColor});`);
+    } else if (style.fill && style.fill !== "transparent") {
+      rules.push(`  background-color: ${style.fill};`);
+    }
+    if (style.cornerRadius && style.cornerRadius > 0) {
+      rules.push(`  border-radius: ${style.cornerRadius}px;`);
+    }
+    if (style.border && style.border.width > 0) {
+      rules.push(`  border: ${style.border.width}px ${style.border.style} ${style.border.color};`);
     }
   }
 
-  const isBoxElement = !nodeType || nodeType === "rectangle" || nodeType === "text" || nodeType === "image" || nodeType === "product";
-
-  if (style) {
-    if (isBoxElement) {
-      if (style.gradient) {
-        const g = style.gradient;
-        rules.push(`  background: linear-gradient(${g.angle ?? 135}deg, ${g.startColor}, ${g.endColor});`);
-      } else if (style.fill !== undefined && style.fill !== "transparent") {
-        rules.push(`  background-color: ${style.fill};`);
-      }
-      if (style.cornerRadius !== undefined && style.cornerRadius > 0) {
-        rules.push(`  border-radius: ${style.cornerRadius}px;`);
-      }
-      if (style.border && style.border.width > 0) {
-        rules.push(`  border: ${style.border.width}px ${style.border.style} ${style.border.color};`);
-      }
-    }
-
-    if (style.opacity !== undefined && style.opacity !== 1) {
-      rules.push(`  opacity: ${style.opacity};`);
-    }
-    if (style.shadow) {
-      rules.push(
-        `  filter: drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color});`
-      );
-    }
-    if (style.typography) {
-      const t = style.typography;
-      if (t.fontFamily) rules.push(`  font-family: ${t.fontFamily};`);
-      if (t.fontSize) rules.push(`  font-size: ${t.fontSize}px;`);
-      if (t.fontWeight) rules.push(`  font-weight: ${t.fontWeight};`);
-      if (t.color) rules.push(`  color: ${t.color};`);
-      if (t.align) rules.push(`  text-align: ${t.align};`);
-      if (t.lineHeight) rules.push(`  line-height: ${t.lineHeight};`);
-      if (t.letterSpacing) rules.push(`  letter-spacing: ${t.letterSpacing}px;`);
-      if (t.textTransform && t.textTransform !== "none") rules.push(`  text-transform: ${t.textTransform};`);
-      if (t.textDecoration && t.textDecoration !== "none") rules.push(`  text-decoration: ${t.textDecoration};`);
-    }
+  if (style.opacity !== undefined && style.opacity !== 1) {
+    rules.push(`  opacity: ${style.opacity};`);
+  }
+  if (style.shadow) {
+    rules.push(
+      `  filter: drop-shadow(${style.shadow.x}px ${style.shadow.y}px ${style.shadow.blur}px ${style.shadow.color});`
+    );
+  }
+  if (style.typography) {
+    const t = style.typography;
+    if (t.fontFamily) rules.push(`  font-family: ${t.fontFamily};`);
+    if (t.fontSize) rules.push(`  font-size: ${t.fontSize}px;`);
+    if (t.fontWeight) rules.push(`  font-weight: ${t.fontWeight};`);
+    if (t.color) rules.push(`  color: ${t.color};`);
+    if (t.align) rules.push(`  text-align: ${t.align};`);
+    if (t.lineHeight) rules.push(`  line-height: ${t.lineHeight};`);
+    if (t.letterSpacing) rules.push(`  letter-spacing: ${t.letterSpacing}px;`);
+    if (t.textTransform && t.textTransform !== "none") rules.push(`  text-transform: ${t.textTransform};`);
+    if (t.textDecoration && t.textDecoration !== "none") rules.push(`  text-decoration: ${t.textDecoration};`);
   }
 
   // Entrance animation rule
@@ -348,7 +335,10 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formSelect": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-select-node" style="display: flex; align-items: center; padding: 0 8px;">\n${indent}  <select style="width: 100%; background: #1e1e2e; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px;">\n${indent}    <option>${escapeHtml(node.name)}</option>\n${indent}  </select>\n${indent}</div>`;
+      const content = (node.content as any) || {};
+      const options = content.options || ["Option 1", "Option 2", "Option 3"];
+      const optHtml = options.map((opt: string) => `<option>${escapeHtml(opt)}</option>`).join("\n" + indent + "    ");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-select-node" style="display:flex; align-items:center; padding:0 8px;">\n${indent}  <select style="width:100%; background:#1e1e2e; color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px;">\n${indent}    ${optHtml}\n${indent}  </select>\n${indent}</div>`;
       break;
     }
 
@@ -358,7 +348,10 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formRadio": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-radio-node" style="display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #fff;">\n${indent}  <input type="radio" id="rad-${nid}" name="radio-group" checked />\n${indent}  <label for="rad-${nid}">${escapeHtml(node.name)}</label>\n${indent}</div>`;
+      const content = (node.content as any) || {};
+      const options = content.options || ["Option 1", "Option 2", "Option 3"];
+      const optHtml = options.map((opt: string, i: number) => `<label style="display:inline-flex; align-items:center; gap:6px; margin-right:12px; cursor:pointer;"><input type="radio" name="radio-${nid}" ${i === 0 ? 'checked' : ''} /><span>${escapeHtml(opt)}</span></label>`).join("");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-radio-node" style="display:flex; align-items:center; flex-wrap:wrap; padding:0 8px; color:#fff;">\n${indent}  ${optHtml}\n${indent}</div>`;
       break;
     }
 
@@ -442,13 +435,25 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
       break;
     }
 
+    case "formSegmented":
     case "formToggleGroup": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-togglegroup-node" style="display: flex; gap: 4px; background: #1e1e2e; padding: 4px; border-radius: 6px;">\n${indent}  <button style="background: #3b82f6; color: #fff; border: none; padding: 4px 8px; border-radius: 4px;">Light</button>\n${indent}  <button style="background: transparent; color: #aaa; border: none; padding: 4px 8px;">Dark</button>\n${indent}</div>`;
+      const content = (node.content as any) || {};
+      const options = content.options || ["Option 1", "Option 2", "Option 3"];
+      const optHtml = options.map((opt: string, i: number) => `<button style="background:${i === 0 ? '#3b82f6' : 'transparent'}; color:${i === 0 ? '#fff' : '#aaa'}; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;">${escapeHtml(opt)}</button>`).join("");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-toggle-node" style="display:flex; gap:4px; background:#1e1e2e; padding:4px; border-radius:6px; border:1px solid rgba(255,255,255,0.15);">\n${indent}  ${optHtml}\n${indent}</div>`;
       break;
     }
 
     case "formAccordion": {
-      elementHTML = `${indent}<details id="node-${nid}" class="canvas-element form-accordion-node" style="background: #1e1e2e; border-radius: 8px; padding: 10px; color: #fff;">\n${indent}  <summary style="cursor: pointer; font-weight: 600;">${escapeHtml(node.name)}</summary>\n${indent}  <p style="font-size: 12px; color: #a0a0c0; margin-top: 6px;">Collapsible panel section content.</p>\n${indent}</details>`;
+      const content = (node.content as any) || {};
+      const options = content.options || ["General Settings", "Security", "Notifications"];
+      const optHtml = options.map((opt: string, i: number) => `
+        <details ${i === 0 ? 'open' : ''} style="background:#1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; margin-bottom:6px; color:#fff;">
+          <summary style="cursor:pointer; font-weight:600;">${escapeHtml(opt)}</summary>
+          <p style="font-size:12px; color:#a0a0c0; margin-top:6px;">Configurable section details panel for ${escapeHtml(opt)}.</p>
+        </details>
+      `).join("");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-accordion-container" style="display:flex; flex-direction:column;">\n${indent}  ${optHtml}\n${indent}</div>`;
       break;
     }
 
@@ -473,17 +478,50 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "navHeader": {
-      elementHTML = `${indent}<header id="node-${nid}" class="canvas-element nav-header-node" style="display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: #181826; border-radius: 8px; color: #fff;">\n${indent}  <div style="font-weight: 700; font-size: 15px;">⚡ CanvasSite</div>\n${indent}  <nav style="display: flex; gap: 16px; font-size: 13px;"><a href="#" style="color: #3b82f6; text-decoration: none;">Home</a><a href="#" style="color: #a0a0c0; text-decoration: none;">Features</a><a href="#" style="color: #a0a0c0; text-decoration: none;">Pricing</a></nav>\n${indent}  <button style="padding: 6px 12px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-size: 12px;">Get Started</button>\n${indent}</header>`;
+      const content = (node.content as any) || {};
+      const brandText = content.brand || "CanvasSite";
+      const links = content.links || ["Home", "Features", "Pricing", "Docs"];
+      const signInText = content.signInText || "Sign In";
+      const ctaText = content.ctaText || "Get Started";
+
+      const showLogo = content.showLogo !== false;
+      const showLinks = content.showLinks !== false;
+      const showSignIn = content.showSignIn !== false;
+      const showCta = content.showCta !== false;
+
+      const logoHtml = showLogo ? `<div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; color:#fff;"><div style="width:28px; height:28px; border-radius:6px; background:linear-gradient(135deg, #3b82f6, #8b5cf6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;">⚡</div><span>${escapeHtml(brandText)}</span></div>` : '';
+      const linksHtml = showLinks ? `<nav style="display:flex; gap:20px; font-size:13px;">${links.map((l: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none; font-weight:${i === 0 ? '600' : '400'};">${escapeHtml(l)}</a>`).join('')}</nav>` : '';
+      const signInHtml = showSignIn ? `<a href="#" style="font-size:12px; color:#a0a0c0; text-decoration:none;">${escapeHtml(signInText)}</a>` : '';
+      const ctaHtml = showCta ? `<button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(ctaText)}</button>` : '';
+
+      elementHTML = `${indent}<header id="node-${nid}" class="canvas-element nav-header-node" style="display:flex; align-items:center; justify-content:space-between; padding:0 16px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  ${logoHtml}\n${indent}  ${linksHtml}\n${indent}  <div style="display:flex; align-items:center; gap:10px;">${signInHtml}${ctaHtml}</div>\n${indent}</header>`;
       break;
     }
 
     case "navSidebar": {
-      elementHTML = `${indent}<aside id="node-${nid}" class="canvas-element nav-sidebar-node" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #181826; border-radius: 8px; color: #fff;">\n${indent}  <div style="font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">🚀 Workspace</div>\n${indent}  <nav style="display: flex; flex-direction: column; gap: 4px; font-size: 13px;"><a href="#" style="color: #a78bfa; padding: 6px; background: rgba(139,92,246,0.15); border-radius: 4px; text-decoration: none;">📊 Overview</a><a href="#" style="color: #a0a0c0; padding: 6px; text-decoration: none;">📈 Analytics</a><a href="#" style="color: #a0a0c0; padding: 6px; text-decoration: none;">⚙️ Settings</a></nav>\n${indent}</aside>`;
+      const content = (node.content as any) || {};
+      const brand = content.brand || content.workspaceTitle || "Workspace";
+      const items = content.items || [
+        { label: "Overview", icon: "📊" },
+        { label: "Analytics", icon: "📈" },
+        { label: "Projects", icon: "📁" },
+        { label: "Settings", icon: "⚙️" },
+      ];
+      const itemsHtml = items.map((it: any, i: number) => {
+        const lbl = typeof it === "string" ? it : it.label;
+        const icn = typeof it === "object" ? it.icon || "📁" : "📁";
+        return `<a href="#" style="color:${i === 0 ? '#a78bfa' : '#a0a0c0'}; padding:8px 10px; background:${i === 0 ? 'rgba(139,92,246,0.15)' : 'transparent'}; border-radius:6px; text-decoration:none; display:flex; align-items:center; gap:10px;"><span>${icn}</span><span>${escapeHtml(lbl)}</span></a>`;
+      }).join("\n" + indent + "    ");
+
+      elementHTML = `${indent}<aside id="node-${nid}" class="canvas-element nav-sidebar-node" style="display:flex; flex-direction:column; gap:16px; padding:12px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); font-weight:700; font-size:13px;">🚀 ${escapeHtml(brand)}</div>\n${indent}  <nav style="display:flex; flex-direction:column; gap:4px; font-size:13px;">\n${indent}    ${itemsHtml}\n${indent}  </nav>\n${indent}</aside>`;
       break;
     }
 
     case "navBreadcrumb": {
-      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-breadcrumb-node" aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8888a8;">\n${indent}  <a href="#" style="color: #8888a8; text-decoration: none;">Home</a> / <a href="#" style="color: #8888a8; text-decoration: none;">Dashboard</a> / <span style="color: #fff; font-weight: 600;">Overview</span>\n${indent}</nav>`;
+      const content = (node.content as any) || {};
+      const trail = content.trail || ["Home", "Dashboard", "Overview"];
+      const trailHtml = trail.map((crumb: string, idx: number) => idx === trail.length - 1 ? `<span style="color:#fff; font-weight:600;">${escapeHtml(crumb)}</span>` : `<a href="#" style="color:#8888a8; text-decoration:none;">${escapeHtml(crumb)}</a>`).join(" / ");
+      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-breadcrumb-node" aria-label="Breadcrumb" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#8888a8;">\n${indent}  ${trailHtml}\n${indent}</nav>`;
       break;
     }
 
@@ -493,17 +531,42 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "navTabs": {
-      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-tabs-node" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 0 12px;">\n${indent}  <a href="#" style="color: #3b82f6; font-weight: 600; border-bottom: 2px solid #3b82f6; padding: 8px 12px; text-decoration: none;">Overview</a>\n${indent}  <a href="#" style="color: #8888a8; padding: 8px 12px; text-decoration: none;">Analytics</a>\n${indent}  <a href="#" style="color: #8888a8; padding: 8px 12px; text-decoration: none;">Reports</a>\n${indent}</nav>`;
+      const content = (node.content as any) || {};
+      const tabs = content.tabs || ["Overview", "Analytics", "Reports", "Settings"];
+      const tabsHtml = tabs.map((tab: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#8888a8'}; font-weight:${i === 0 ? '600' : '400'}; border-bottom:${i === 0 ? '2px solid #3b82f6' : 'none'}; padding:8px 12px; text-decoration:none;">${escapeHtml(tab)}</a>`).join("");
+      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-tabs-node" style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding:0 12px;">\n${indent}  ${tabsHtml}\n${indent}</nav>`;
       break;
     }
 
     case "navToc": {
-      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-toc-node" style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: #181826; border-radius: 8px; font-size: 12px;">\n${indent}  <div style="font-size: 11px; font-weight: 700; color: #8888a8; text-transform: uppercase;">Table of Contents</div>\n${indent}  <a href="#intro" style="color: #3b82f6; text-decoration: none;">1. Introduction</a>\n${indent}  <a href="#setup" style="color: #a0a0c0; text-decoration: none;">2. Installation & Setup</a>\n${indent}  <a href="#api" style="color: #a0a0c0; text-decoration: none;">3. API Reference</a>\n${indent}</nav>`;
+      const content = (node.content as any) || {};
+      const sections = content.sections || ["1. Introduction", "2. Setup", "3. API Reference"];
+      const sectionsHtml = sections.map((sec: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none;">${escapeHtml(sec)}</a>`).join("\n" + indent + "  ");
+      elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-toc-node" style="display:flex; flex-direction:column; gap:6px; padding:12px; background:#181826; border-radius:8px; font-size:12px;">\n${indent}  <div style="font-size:11px; font-weight:700; color:#8888a8; text-transform:uppercase;">Table of Contents</div>\n${indent}  ${sectionsHtml}\n${indent}</nav>`;
       break;
     }
 
     case "dataCard": {
-      elementHTML = `${indent}<article id="node-${nid}" class="canvas-element data-card-node" style="display: flex; flex-direction: column; justify-content: space-between; padding: 16px; background: #181826; border-radius: 8px; color: #fff;">\n${indent}  <div style="font-weight: 700; font-size: 15px;">Feature Card</div>\n${indent}  <p style="font-size: 12px; color: #a0a0c0; margin: 8px 0;">Self-contained card container grouping related content and actions.</p>\n${indent}  <button style="padding: 6px 14px; background: #3b82f6; color: #fff; border: none; border-radius: 6px;">Learn More →</button>\n${indent}</article>`;
+      const content = (node.content as any) || {};
+      const title = content.title || "Feature Card";
+      const subtitle = content.subtitle || "Productivity Module";
+      const badge = content.badge || "PRO";
+      const text = content.text || "Self-contained card container grouping related content and actions.";
+      const buttonText = content.buttonText || "Learn More →";
+
+      const showTitle = content.showTitle !== false;
+      const showSubtitle = content.showSubtitle !== false;
+      const showBadge = content.showBadge !== false;
+      const showText = content.showText !== false;
+      const showButton = content.showButton !== false;
+
+      const titleHtml = showTitle ? `<div style="font-weight:700; font-size:15px; color:#fff;">${escapeHtml(title)}</div>` : '';
+      const subHtml = showSubtitle ? `<div style="font-size:11px; color:#8888a8; margin-top:2px;">${escapeHtml(subtitle)}</div>` : '';
+      const badgeHtml = showBadge ? `<span style="padding:2px 8px; border-radius:12px; background:rgba(59,130,246,0.2); border:1px solid #3b82f6; color:#60a5fa; font-size:10px; font-weight:700;">${escapeHtml(badge)}</span>` : '';
+      const textHtml = showText ? `<div style="font-size:12px; color:#a0a0c0; margin:8px 0; line-height:1.4;">${escapeHtml(text)}</div>` : '';
+      const btnHtml = showButton ? `<div style="display:flex; justify-content:flex-end;"><button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(buttonText)}</button></div>` : '';
+
+      elementHTML = `${indent}<article id="node-${nid}" class="canvas-element data-card-node" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div>${titleHtml}${subHtml}</div>${badgeHtml}</div>\n${indent}  ${textHtml}\n${indent}  ${btnHtml}\n${indent}</article>`;
       break;
     }
 
@@ -533,7 +596,23 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "feedbackModal": {
-      elementHTML = `${indent}<dialog id="node-${nid}" class="canvas-element feedback-modal-node" open style="padding: 16px; background: #181826; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; max-width: 360px;">\n${indent}  <div style="font-weight: 700; font-size: 14px;">Confirm Deletion</div>\n${indent}  <p style="font-size: 12px; color: #a0a0c0; margin: 8px 0;">Are you sure you want to proceed?</p>\n${indent}  <div style="display: flex; justify-content: flex-end; gap: 8px;"><button style="padding: 6px 12px; background: #ef4444; color: #fff; border: none; border-radius: 6px;">Confirm</button></div>\n${indent}</dialog>`;
+      const content = (node.content as any) || {};
+      const title = content.title || "Confirm Deletion";
+      const text = content.text || "Are you sure you want to proceed? This action will permanently remove the item.";
+      const confirmText = content.confirmText || "Confirm";
+      const cancelText = content.cancelText || "Cancel";
+
+      const showTitle = content.showTitle !== false;
+      const showText = content.showText !== false;
+      const showConfirmBtn = content.showConfirmBtn !== false;
+      const showCancelBtn = content.showCancelBtn !== false;
+
+      const titleHtml = showTitle ? `<div style="font-weight:700; font-size:14px; color:#fff;">${escapeHtml(title)}</div>` : '';
+      const textHtml = showText ? `<div style="font-size:12px; color:#a0a0c0; margin:8px 0; line-height:1.4;">${escapeHtml(text)}</div>` : '';
+      const cancelHtml = showCancelBtn ? `<button style="padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#a0a0c0; border-radius:6px; font-size:11px; cursor:pointer;">${escapeHtml(cancelText)}</button>` : '';
+      const confirmHtml = showConfirmBtn ? `<button style="padding:6px 12px; background:#ef4444; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:11px; cursor:pointer;">${escapeHtml(confirmText)}</button>` : '';
+
+      elementHTML = `${indent}<dialog id="node-${nid}" class="canvas-element feedback-modal-node" open style="padding:16px; background:#181826; border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; max-width:360px; display:flex; flex-direction:column; justify-content:space-between;">\n${indent}  <div style="display:flex; justify-content:space-between; align-items:center;">${titleHtml}<span style="cursor:pointer; color:#8888a8;">✕</span></div>\n${indent}  ${textHtml}\n${indent}  <div style="display:flex; justify-content:flex-end; gap:8px;">${cancelHtml}${confirmHtml}</div>\n${indent}</dialog>`;
       break;
     }
 
@@ -583,7 +662,9 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "actionButton": {
-      elementHTML = `${indent}<button id="node-${nid}" class="canvas-element action-button-node" style="padding: 10px 20px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Primary Action</button>`;
+      const content = (node.content as any) || {};
+      const btnText = content.title || content.text || "Primary Action";
+      elementHTML = `${indent}<button id="node-${nid}" class="canvas-element action-button-node" style="padding: 10px 20px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">${escapeHtml(btnText)}</button>`;
       break;
     }
 
@@ -593,12 +674,34 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "sectionHero": {
-      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-hero" style="width:100%; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding:48px 24px; text-align:center; color:#fff; border-radius:12px;">\n${indent}  <h1 style="font-size:32px; font-weight:800; margin-bottom:12px;">Build Something Amazing</h1>\n${indent}  <p style="color:#94a3b8; font-size:16px; margin-bottom:24px;">Create stunning websites with our intuitive builder.</p>\n${indent}  <a href="#" style="display:inline-block; padding:12px 28px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; text-decoration:none; border-radius:8px; font-weight:700;">Get Started</a>\n${indent}</section>`;
+      const content = (node.content as any) || {};
+      const title = content.title || content.text || "Build Something Amazing";
+      const subtitle = content.subtitle || "Create stunning websites with our intuitive builder.";
+      const primaryText = content.primaryButtonText || "Get Started";
+      const secondaryText = content.secondaryButtonText || "Learn More";
+
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-hero" style="width:100%; background:linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); padding:48px 24px; text-align:center; color:#fff; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-sizing:border-box;">\n${indent}  <h1 style="font-size:32px; font-weight:800; line-height:1.1; margin:0;">${escapeHtml(title)}</h1>\n${indent}  <p style="color:#94a3b8; font-size:16px; max-width:80%; line-height:1.5; margin:0;">${escapeHtml(subtitle)}</p>\n${indent}  <div style="display:flex; gap:12px; margin-top:8px;">\n${indent}    <a href="#" style="padding:12px 28px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; text-decoration:none; border-radius:8px; font-weight:700; font-size:14px;">${escapeHtml(primaryText)}</a>\n${indent}    <a href="#" style="padding:12px 28px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#e2e8f0; text-decoration:none; border-radius:8px; font-weight:600; font-size:14px;">${escapeHtml(secondaryText)}</a>\n${indent}  </div>\n${indent}</section>`;
       break;
     }
 
     case "sectionPricing": {
-      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-pricing" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px;">\n${indent}  <h2 style="text-align:center; font-size:24px; margin-bottom:24px;">Choose Your Plan</h2>\n${indent}  <div style="display:flex; gap:16px; justify-content:center;">\n${indent}    <div style="flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); padding:20px; border-radius:8px;">\n${indent}      <h3>Basic</h3><div style="font-size:28px; font-weight:800; margin:12px 0;">$9/mo</div><button style="width:100%; padding:10px; background:#334155; color:#fff; border:none; border-radius:6px; font-weight:600;">Choose Basic</button>\n${indent}    </div>\n${indent}    <div style="flex:1; background:rgba(99,102,241,0.15); border:1px solid #6366f1; padding:20px; border-radius:8px;">\n${indent}      <h3>Pro</h3><div style="font-size:28px; font-weight:800; margin:12px 0;">$29/mo</div><button style="width:100%; padding:10px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; border-radius:6px; font-weight:700;">Get Pro</button>\n${indent}    </div>\n${indent}  </div>\n${indent}</section>`;
+      const content = (node.content as any) || {};
+      const title = content.title || content.text || "Choose Your Plan";
+      const tiers = content.tiers || [
+        { name: "Starter", price: "$9", period: "/mo", cta: "Choose Starter", popular: false },
+        { name: "Pro", price: "$29", period: "/mo", cta: "Get Started", popular: true },
+        { name: "Enterprise", price: "$99", period: "/mo", cta: "Contact Sales", popular: false },
+      ];
+
+      const tiersHtml = tiers.map((tier: any) => `
+        <div style="flex:1; background:${tier.popular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)'}; border:1px solid ${tier.popular ? '#6366f1' : 'rgba(255,255,255,0.1)'}; padding:20px; border-radius:8px; text-align:left;">
+          <h3 style="font-size:18px; font-weight:700; margin:0;">${escapeHtml(tier.name)}</h3>
+          <div style="font-size:28px; font-weight:800; margin:12px 0;">${escapeHtml(tier.price)}<span style="font-size:12px; color:#94a3b8;">${escapeHtml(tier.period || "/mo")}</span></div>
+          <button style="width:100%; padding:10px; background:${tier.popular ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : '#334155'}; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">${escapeHtml(tier.cta || "Choose Plan")}</button>
+        </div>
+      `).join("");
+
+      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-pricing" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px;">\n${indent}  <h2 style="text-align:center; font-size:24px; font-weight:700; margin-bottom:24px;">${escapeHtml(title)}</h2>\n${indent}  <div style="display:flex; gap:16px; justify-content:center;">${tiersHtml}</div>\n${indent}</section>`;
       break;
     }
 
@@ -607,7 +710,16 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     case "sectionFeatures":
     case "sectionCTA":
     case "sectionFooter": {
-      elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-block" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px; text-align:center;">\n${indent}  <h2 style="font-size:24px; font-weight:700; margin-bottom:12px;">${node.name}</h2>\n${indent}</section>`;
+      const content = (node.content as any) || {};
+      const title = content.title || content.text || content.brand || node.name;
+      const subtitle = content.subtitle || "";
+      const copyright = content.copyright || "© 2024 CanvasSite. All rights reserved.";
+
+      if (node.type === "sectionFooter") {
+        elementHTML = `${indent}<footer id="node-${nid}" class="canvas-element section-footer" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px; display:flex; flex-direction:column; gap:16px; text-align:center;">\n${indent}  <div style="font-size:18px; font-weight:700;">${escapeHtml(title)}</div>\n${indent}  ${subtitle ? `<div style="font-size:13px; color:#94a3b8;">${escapeHtml(subtitle)}</div>` : ''}\n${indent}  <div style="font-size:12px; color:#64748b; margin-top:8px;">${escapeHtml(copyright)}</div>\n${indent}</footer>`;
+      } else {
+        elementHTML = `${indent}<section id="node-${nid}" class="canvas-element section-block" style="width:100%; background:#0f172a; padding:32px 24px; color:#fff; border-radius:12px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px;">\n${indent}  <h2 style="font-size:24px; font-weight:700; margin:0;">${escapeHtml(title)}</h2>\n${indent}  ${subtitle ? `<p style="color:#94a3b8; font-size:14px; margin:0;">${escapeHtml(subtitle)}</p>` : ''}\n${indent}</section>`;
+      }
       break;
     }
 
@@ -669,14 +781,13 @@ export function exportSite(
   Object.values(pages).forEach((page) => {
     const pageNodes = page.nodes;
 
-    const topLevelNodes = Object.values(pageNodes)
-      .filter((n) => n.parentId === null)
-      .sort((a, b) => a.order - b.order);
+    const topLevelNodes = getRenderTree(pageNodes);
 
     const bodyHTML = topLevelNodes.map((n) => renderNodeHTML(n, pageNodes, "      ")).join("\n");
 
     const pageBg = page.backgroundColor && page.backgroundColor !== "transparent" ? page.backgroundColor : "#0f0f1a";
     const htmlContent = `<!DOCTYPE html>
+<!-- Generated & Published by CanvasSite Builder at ${new Date().toLocaleString()} -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -714,6 +825,21 @@ ${bodyHTML}
   });
 
   const cssRules: string[] = [];
+
+  const fontFamilies = new Set<string>();
+  allNodes.forEach((n) => {
+    if (n.style?.typography?.fontFamily) {
+      const familyName = n.style.typography.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+      if (familyName && familyName !== "sans-serif" && familyName !== "serif" && familyName !== "monospace") {
+        fontFamilies.add(familyName);
+      }
+    }
+  });
+
+  if (fontFamilies.size > 0) {
+    const fontParams = Array.from(fontFamilies).map((f) => `family=${encodeURIComponent(f)}:wght@400;500;600;700;800`).join("&");
+    cssRules.push(`@import url('https://fonts.googleapis.com/css2?${fontParams}&display=swap');`);
+  }
 
   cssRules.push(`/* Reset & Base Layout */
 * {
@@ -834,9 +960,17 @@ export function generateMultiPageSiteCode(
   pageFiles: ExportedPageFile[];
   css: string;
 } {
-  const { pageFiles, css } = exportSite(pages, activePageId);
+  const mergedPages = { ...pages };
+  if (mergedPages[activePageId] && _currentNodes) {
+    mergedPages[activePageId] = {
+      ...mergedPages[activePageId],
+      nodes: _currentNodes,
+    };
+  }
+
+  const { pageFiles, css } = exportSite(mergedPages, activePageId);
   const formattedPageFiles = Object.entries(pageFiles).map(([filename, html]) => {
-    const pageObj = Object.values(pages).find((p) => `${p.slug}.html` === filename);
+    const pageObj = Object.values(mergedPages).find((p) => `${p.slug}.html` === filename);
     return {
       id: pageObj?.id || filename,
       name: pageObj?.name || filename,

@@ -32,6 +32,29 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
   const components = useComponentStore((s) => s.components);
   const products = useEcommerceStore((s) => s.products);
 
+  const renderForeignObjectNode = (n: CanvasNode, children: React.ReactNode) => {
+    const { x, y, width, height, rotation } = n.geometry;
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+
+    return (
+      <g transform={rotation !== 0 ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+        <foreignObject
+          data-node-id={n.id}
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          style={{ overflow: "visible", pointerEvents: "all" }}
+        >
+          <div data-node-id={n.id} style={{ width: "100%", height: "100%", position: "relative" }}>
+            {children}
+          </div>
+        </foreignObject>
+      </g>
+    );
+  };
+
   switch (node.type) {
     case "rectangle":
       return <RectNode node={node} />;
@@ -86,7 +109,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
     case "formGradientPicker":
     case "formCurrency":
     case "formTimeRange":
-      return <FormControlsNode node={node} />;
+      return renderForeignObjectNode(node, <FormControlsNode node={node} />);
 
     case "navHeader":
     case "navSidebar":
@@ -94,7 +117,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
     case "navPagination":
     case "navTabs":
     case "navToc":
-      return <NavWayfindingNode node={node} />;
+      return renderForeignObjectNode(node, <NavWayfindingNode node={node} />);
 
     case "dataCard":
     case "dataTable":
@@ -102,7 +125,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
     case "dataBadge":
     case "dataAccordion":
     case "dataTooltip":
-      return <DataDisplayNode node={node} />;
+      return renderForeignObjectNode(node, <DataDisplayNode node={node} />);
 
     case "feedbackModal":
     case "feedbackToast":
@@ -110,7 +133,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
     case "feedbackProgress":
     case "feedbackSkeleton":
     case "feedbackEmptyState":
-      return <FeedbackOverlayNode node={node} />;
+      return renderForeignObjectNode(node, <FeedbackOverlayNode node={node} />);
 
     case "layoutContainer":
     case "layoutCarousel":
@@ -118,7 +141,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
     case "layoutDivider":
     case "actionButton":
     case "actionMenu":
-      return <LayoutActionNode node={node} />;
+      return renderForeignObjectNode(node, <LayoutActionNode node={node} />);
 
     case "sectionHero":
     case "sectionPricing":

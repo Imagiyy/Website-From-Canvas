@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { CanvasNode, TypographyStyle, Style, ShadowStyle } from "../types/canvas";
 import { useCanvasStore } from "../store/canvasStore";
+import { usePluginStore } from "../store/pluginStore";
 import { getEffectiveNode } from "../utils/breakpoint";
 import "./PropertyPanel.css";
 
@@ -80,6 +81,19 @@ const DebouncedTextInput: React.FC<{
         }
       }}
     />
+  );
+};
+
+const isTextCapableNode = (type: string) => {
+  return (
+    type === "text" ||
+    type.startsWith("form") ||
+    type.startsWith("nav") ||
+    type.startsWith("data") ||
+    type.startsWith("feedback") ||
+    type.startsWith("layout") ||
+    type.startsWith("section") ||
+    type === "actionButton"
   );
 };
 
@@ -806,22 +820,33 @@ export const PropertyPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Text Content (Text Node Only) */}
-        {node.type === "text" && (
-          <div className="property-panel__section">
-            <span className="property-panel__section-title">Text Content</span>
-            <textarea
-              className="property-panel__textarea"
-              rows={3}
-              value={node.content?.kind === "text" ? node.content.text : "Text"}
-              onChange={(e) => updateNodeContent(node.id, { kind: "text", text: e.target.value }, true)}
-              placeholder="Enter text..."
+        {/* Text / Label Content & Element Title */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Label & Text Content</span>
+          <div className="property-panel__row" style={{ marginBottom: 8 }}>
+            <label>Layer Name</label>
+            <input
+              type="text"
+              className="property-panel__text-input"
+              value={node.name}
+              onChange={(e) => updateNodeName(node.id, e.target.value)}
+              placeholder="Element name..."
             />
           </div>
-        )}
+          <div className="property-panel__row">
+            <label>Text / Label</label>
+            <textarea
+              className="property-panel__textarea"
+              rows={2}
+              value={node.content?.kind === "text" ? node.content.text : (node.content as any)?.text || node.name}
+              onChange={(e) => updateNodeContent(node.id, { kind: "text", text: e.target.value }, true)}
+              placeholder="Enter text label..."
+            />
+          </div>
+        </div>
 
-        {/* Typography Settings (Text Node Only) */}
-        {node.type === "text" && (
+        {/* Typography Settings */}
+        {(node.type === "text" || isTextCapableNode(node.type)) && (
           <div className="property-panel__section">
             <span className="property-panel__section-title">Typography</span>
 
@@ -971,6 +996,521 @@ export const PropertyPanel: React.FC = () => {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Feature Component Customizer */}
+        {(node.type.startsWith("form") ||
+          node.type.startsWith("nav") ||
+          node.type.startsWith("data") ||
+          node.type.startsWith("feedback") ||
+          node.type.startsWith("layout") ||
+          node.type.startsWith("section") ||
+          node.type === "embedCode" ||
+          node.type === "embedIframe" ||
+          node.type === "iconElement") && (
+          <div className="property-panel__section">
+            <span className="property-panel__section-title">Feature Component Customizer</span>
+
+            {/* Form Controls Customizer */}
+            {node.type.startsWith("form") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Placeholder Text</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.placeholder || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), placeholder: e.target.value }, true)}
+                    placeholder="Enter placeholder..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Default Value</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.defaultValue || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), defaultValue: e.target.value }, true)}
+                    placeholder="Enter default value..."
+                  />
+                </div>
+
+                {(node.type === "formSelect" ||
+                  node.type === "formRadio" ||
+                  node.type === "formSegmented" ||
+                  node.type === "formToggleGroup" ||
+                  node.type === "formAccordion") && (
+                  <div className="property-panel__row">
+                    <label>Options (comma separated)</label>
+                    <input
+                      type="text"
+                      className="property-panel__text-input"
+                      value={((node.content as any)?.options || ["Option 1", "Option 2", "Option 3"]).join(", ")}
+                      onChange={(e) =>
+                        updateNodeContent(
+                          node.id,
+                          {
+                            ...(node.content as any),
+                            options: e.target.value.split(",").map((s) => s.trim()),
+                          },
+                          true
+                        )
+                      }
+                      placeholder="Option 1, Option 2, Option 3..."
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Navigation Customizer */}
+            {node.type.startsWith("nav") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Brand / Logo Name</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.brand || "CanvasSite"}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), brand: e.target.value }, true)}
+                    placeholder="Brand name..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Menu Links (comma separated)</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={((node.content as any)?.links || (node.content as any)?.trail || ["Home", "Features", "Pricing", "Docs"]).join(", ")}
+                    onChange={(e) => {
+                      const arr = e.target.value.split(",").map((s) => s.trim());
+                      updateNodeContent(node.id, { ...(node.content as any), links: arr, trail: arr }, true);
+                    }}
+                    placeholder="Home, Features, Pricing..."
+                  />
+                </div>
+
+                {node.type === "navHeader" && (
+                  <>
+                    <div className="property-panel__row">
+                      <label>Sign In Text</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.signInText || "Sign In"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), signInText: e.target.value }, true)}
+                        placeholder="Sign In label..."
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>CTA Button Label</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.ctaText || "Get Started"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), ctaText: e.target.value }, true)}
+                        placeholder="CTA button label..."
+                      />
+                    </div>
+
+                    {/* Sub-element Visibility Switches */}
+                    <div className="property-panel__row" style={{ marginTop: 8 }}>
+                      <label>Show Logo</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showLogo !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showLogo: e.target.checked }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Show Nav Links</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showLinks !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showLinks: e.target.checked }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Show Sign In Link</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showSignIn !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showSignIn: e.target.checked }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Show CTA Button</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showCta !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showCta: e.target.checked }, true)}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Data Display Customizer */}
+            {node.type.startsWith("data") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Title / Heading</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.title || (node.content as any)?.text || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), title: e.target.value, text: e.target.value }, true)}
+                    placeholder="Title text..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Subtitle / Body Text</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.subtitle || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), subtitle: e.target.value }, true)}
+                    placeholder="Subtitle text..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Badge / Tag Text</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.badge || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), badge: e.target.value }, true)}
+                    placeholder="Badge label..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Button Label</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.buttonText || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), buttonText: e.target.value }, true)}
+                    placeholder="Button text..."
+                  />
+                </div>
+
+                {node.type === "dataCard" && (
+                  <>
+                    <div className="property-panel__row">
+                      <label>Show Title</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showTitle !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showTitle: e.target.checked }, true)}
+                      />
+                    </div>
+                    <div className="property-panel__row">
+                      <label>Show Subtitle</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showSubtitle !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showSubtitle: e.target.checked }, true)}
+                      />
+                    </div>
+                    <div className="property-panel__row">
+                      <label>Show Badge Tag</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showBadge !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showBadge: e.target.checked }, true)}
+                      />
+                    </div>
+                    <div className="property-panel__row">
+                      <label>Show Action Button</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showButton !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showButton: e.target.checked }, true)}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Feedback & Overlays Customizer */}
+            {node.type.startsWith("feedback") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Title / Header</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.title || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), title: e.target.value }, true)}
+                    placeholder="Header title..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Body Message Text</label>
+                  <textarea
+                    className="property-panel__textarea"
+                    rows={2}
+                    value={(node.content as any)?.text || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), text: e.target.value }, true)}
+                    placeholder="Message text..."
+                  />
+                </div>
+
+                {node.type === "feedbackModal" && (
+                  <>
+                    <div className="property-panel__row">
+                      <label>Confirm Button</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.confirmText || "Confirm"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), confirmText: e.target.value }, true)}
+                      />
+                    </div>
+                    <div className="property-panel__row">
+                      <label>Cancel Button</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.cancelText || "Cancel"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), cancelText: e.target.value }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Show Confirm Button</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showConfirmBtn !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showConfirmBtn: e.target.checked }, true)}
+                      />
+                    </div>
+                    <div className="property-panel__row">
+                      <label>Show Cancel Button</label>
+                      <input
+                        type="checkbox"
+                        checked={(node.content as any)?.showCancelBtn !== false}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), showCancelBtn: e.target.checked }, true)}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Layout & Action Customizer */}
+            {(node.type.startsWith("layout") || node.type.startsWith("action") || node.type === "mediaPlayer") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Container / Button Title</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.title || (node.content as any)?.text || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), title: e.target.value, text: e.target.value }, true)}
+                    placeholder="Title / Button text..."
+                  />
+                </div>
+
+                {node.type === "layoutContainer" && (
+                  <div className="property-panel__row">
+                    <label>Grid Columns (comma separated)</label>
+                    <input
+                      type="text"
+                      className="property-panel__text-input"
+                      value={((node.content as any)?.columns || ["Column A", "Column B", "Column C"]).join(", ")}
+                      onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), columns: e.target.value.split(",").map((s) => s.trim()) }, true)}
+                      placeholder="Column 1, Column 2..."
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Page Section Customizer */}
+            {node.type.startsWith("section") && (
+              <>
+                <div className="property-panel__row">
+                  <label>Section Heading (Title)</label>
+                  <input
+                    type="text"
+                    className="property-panel__text-input"
+                    value={(node.content as any)?.title || (node.content as any)?.text || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), title: e.target.value, text: e.target.value }, true)}
+                    placeholder="Section title..."
+                  />
+                </div>
+
+                <div className="property-panel__row">
+                  <label>Subtitle / Description</label>
+                  <textarea
+                    className="property-panel__textarea"
+                    rows={2}
+                    value={(node.content as any)?.subtitle || ""}
+                    onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), subtitle: e.target.value }, true)}
+                    placeholder="Subtitle description..."
+                  />
+                </div>
+
+                {(node.type === "sectionHero" || node.type === "sectionCTA") && (
+                  <>
+                    <div className="property-panel__row">
+                      <label>Primary Button Label</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.primaryButtonText || "Get Started"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), primaryButtonText: e.target.value }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Secondary Button Label</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.secondaryButtonText || "Learn More"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), secondaryButtonText: e.target.value }, true)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {node.type === "sectionFooter" && (
+                  <>
+                    <div className="property-panel__row">
+                      <label>Brand Name</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.brand || "CanvasSite"}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), brand: e.target.value }, true)}
+                      />
+                    </div>
+
+                    <div className="property-panel__row">
+                      <label>Copyright Notice</label>
+                      <input
+                        type="text"
+                        className="property-panel__text-input"
+                        value={(node.content as any)?.copyright || "© 2024 CanvasSite. All rights reserved."}
+                        onChange={(e) => updateNodeContent(node.id, { ...(node.content as any), copyright: e.target.value }, true)}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Embed Code / iFrame Customizer */}
+            {(node.type === "embedCode" || node.type === "embedIframe") && (
+              <>
+                {node.type === "embedCode" ? (
+                  <div className="property-panel__row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                    <label>Custom HTML / JS Code</label>
+                    <textarea
+                      className="property-panel__textarea"
+                      rows={4}
+                      value={node.embedData?.code || ""}
+                      onChange={(e) =>
+                        useCanvasStore.setState((s) => ({
+                          nodes: {
+                            ...s.nodes,
+                            [node.id]: {
+                              ...s.nodes[node.id],
+                              embedData: { ...s.nodes[node.id]?.embedData, code: e.target.value },
+                            },
+                          },
+                        }))
+                      }
+                      placeholder="<!-- Paste custom HTML/JS code -->"
+                    />
+                  </div>
+                ) : (
+                  <div className="property-panel__row">
+                    <label>iFrame Source URL</label>
+                    <input
+                      type="text"
+                      className="property-panel__text-input"
+                      value={node.embedData?.iframeSrc || ""}
+                      onChange={(e) =>
+                        useCanvasStore.setState((s) => ({
+                          nodes: {
+                            ...s.nodes,
+                            [node.id]: {
+                              ...s.nodes[node.id],
+                              embedData: { ...s.nodes[node.id]?.embedData, iframeSrc: e.target.value },
+                            },
+                          },
+                        }))
+                      }
+                      placeholder="https://example.com/embed..."
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Icon Element Customizer */}
+            {node.type === "iconElement" && (
+              <div className="property-panel__row">
+                <label>Icon Color</label>
+                <div className="property-panel__color-wrapper">
+                  <input
+                    type="color"
+                    value={node.iconData?.iconColor || "#e4e4f0"}
+                    onChange={(e) =>
+                      useCanvasStore.setState((s) => ({
+                        nodes: {
+                          ...s.nodes,
+                          [node.id]: {
+                            ...s.nodes[node.id],
+                            iconData: {
+                              iconName: s.nodes[node.id]?.iconData?.iconName || "Icon",
+                              iconColor: e.target.value,
+                              svgPath: s.nodes[node.id]?.iconData?.svgPath || "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+                            },
+                          },
+                        },
+                      }))
+                    }
+                  />
+                  <input
+                    type="text"
+                    className="property-panel__hex-input"
+                    value={node.iconData?.iconColor || "#e4e4f0"}
+                    onChange={(e) =>
+                      useCanvasStore.setState((s) => ({
+                        nodes: {
+                          ...s.nodes,
+                          [node.id]: {
+                            ...s.nodes[node.id],
+                            iconData: {
+                              iconName: s.nodes[node.id]?.iconData?.iconName || "Icon",
+                              iconColor: e.target.value,
+                              svgPath: s.nodes[node.id]?.iconData?.svgPath || "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+                            },
+                          },
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1258,6 +1798,85 @@ export const PropertyPanel: React.FC = () => {
               <option value="right">Right</option>
               <option value="both">Left & Right (Stretch)</option>
               <option value="center">Center</option>
+            </select>
+          </div>
+        </div>
+        {/* Motion & Physics */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Motion & Keyframe Timelines</span>
+          <div className="property-panel__row">
+            <label>Spring Physics Preset</label>
+            <select
+              className="property-panel__select"
+              value={node.springConfig?.stiffness === 250 ? "bouncy" : "gentle"}
+              onChange={(e) => {
+                const val = e.target.value;
+                const config = val === "bouncy"
+                  ? { tension: 250, friction: 10, mass: 1, stiffness: 250 }
+                  : { tension: 120, friction: 14, mass: 1, stiffness: 120 };
+                useCanvasStore.setState((s) => ({
+                  nodes: {
+                    ...s.nodes,
+                    [node.id]: { ...s.nodes[node.id], springConfig: config },
+                  },
+                }));
+              }}
+            >
+              <option value="gentle">Gentle Organic</option>
+              <option value="wobbly">Wobbly Rubber</option>
+              <option value="stiff">Stiff Precision</option>
+              <option value="bouncy">Bouncy Interactive</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Localization & Translation */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Localization & Translation</span>
+          <div className="property-panel__row">
+            <label>Translation Key</label>
+            <input
+              type="text"
+              className="property-panel__text-input"
+              placeholder="e.g. hero.title"
+              value={node.translationKey || ""}
+              onChange={(e) => {
+                const tk = e.target.value;
+                useCanvasStore.setState((s) => ({
+                  nodes: {
+                    ...s.nodes,
+                    [node.id]: { ...s.nodes[node.id], translationKey: tk },
+                  },
+                }));
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Webhook Form Link */}
+        <div className="property-panel__section">
+          <span className="property-panel__section-title">Native Webhook Target</span>
+          <div className="property-panel__row">
+            <label>Submit Pipeline</label>
+            <select
+              className="property-panel__select"
+              value={node.webhookId || ""}
+              onChange={(e) => {
+                const wh = e.target.value;
+                useCanvasStore.setState((s) => ({
+                  nodes: {
+                    ...s.nodes,
+                    [node.id]: { ...s.nodes[node.id], webhookId: wh },
+                  },
+                }));
+              }}
+            >
+              <option value="">None (Local submit)</option>
+              {usePluginStore.getState().webhooks.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} ({w.service})
+                </option>
+              ))}
             </select>
           </div>
         </div>

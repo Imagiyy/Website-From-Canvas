@@ -10,7 +10,6 @@ import type {
   ActiveTool,
   Geometry,
   ElementType,
-  TextContent,
   ImageContent,
   AlignmentGuide,
   Style,
@@ -101,7 +100,7 @@ interface CanvasStoreActions {
   updateNodeGeometry: (id: NodeId, partial: Partial<Geometry>) => void;
   updateNodeStyle: (id: NodeId, partial: Partial<import("../types/canvas").Style>) => void;
   updateNode: (id: NodeId, partial: Partial<CanvasNode>) => void;
-  updateNodeContent: (id: NodeId, content: TextContent | ImageContent, skipUndo?: boolean) => void;
+  updateNodeContent: (id: NodeId, content: any, skipUndo?: boolean) => void;
   updateImageFit: (id: NodeId, fit: "cover" | "contain" | "fill") => void;
   toggleNodeVisibility: (id: NodeId) => void;
   toggleNodeLock: (id: NodeId) => void;
@@ -128,6 +127,7 @@ interface CanvasStoreActions {
   // Grouping
   groupSelected: () => void;
   ungroupSelected: () => void;
+  explodeFeatureNodeToNodes: (id?: NodeId) => void;
 
   // Clipboard
   copySelected: () => void;
@@ -1458,6 +1458,224 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set({
       nodes: newNodes,
       selectedNodeIds: ensureValidSelection(newSelection, newNodes),
+      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+      future: [],
+    });
+  },
+
+  explodeFeatureNodeToNodes: (targetId) => {
+    const state = get();
+    const id = targetId || Array.from(state.selectedNodeIds)[0];
+    if (!id) return;
+    const node = state.nodes[id];
+    if (!node) return;
+
+    const snap = snapshot(state);
+    const newNodes = { ...state.nodes };
+    delete newNodes[id];
+
+    const { x, y, width, height } = node.geometry;
+    const content = (node.content as any) || {};
+    const parentId = node.parentId;
+    const generatedChildIds: string[] = [];
+
+    // 1. Create Base Frame Node
+    const baseId = crypto.randomUUID();
+    newNodes[baseId] = {
+      id: baseId,
+      parentId,
+      type: "rectangle",
+      name: `${node.name} (Background Frame)`,
+      order: Object.keys(newNodes).length + 1,
+      geometry: { x, y, width, height, rotation: node.geometry.rotation },
+      style: { ...node.style, fill: node.style.fill || "#181826", cornerRadius: node.style.cornerRadius || 8 },
+    };
+    generatedChildIds.push(baseId);
+
+    // 2. Extract sub-elements according to node type
+    if (node.type === "navHeader") {
+      const brandText = content.brand || "CanvasSite";
+      const links = content.links || ["Home", "Features", "Pricing", "Docs"];
+      const signInText = content.signInText || "Sign In";
+      const ctaText = content.ctaText || "Get Started";
+
+      if (content.showLogo !== false) {
+        const logoId = crypto.randomUUID();
+        newNodes[logoId] = {
+          id: logoId,
+          parentId,
+          type: "text",
+          name: "Brand Logo",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + 16, y: y + (height - 24) / 2, width: 140, height: 24, rotation: 0 },
+          style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 700, color: "#ffffff", align: "left", lineHeight: 1.4 } },
+          content: { kind: "text", text: `⚡ ${brandText}` },
+        };
+        generatedChildIds.push(logoId);
+      }
+
+      if (content.showLinks !== false) {
+        links.forEach((link: string, idx: number) => {
+          const linkId = crypto.randomUUID();
+          newNodes[linkId] = {
+            id: linkId,
+            parentId,
+            type: "text",
+            name: `Link - ${link}`,
+            order: Object.keys(newNodes).length + 1,
+            geometry: { x: x + 200 + idx * 85, y: y + (height - 20) / 2, width: 75, height: 20, rotation: 0 },
+            style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: idx === 0 ? 600 : 400, color: idx === 0 ? "#3b82f6" : "#a0a0c0", align: "left", lineHeight: 1.4 } },
+            content: { kind: "text", text: link },
+          };
+          generatedChildIds.push(linkId);
+        });
+      }
+
+      if (content.showSignIn !== false) {
+        const signInId = crypto.randomUUID();
+        newNodes[signInId] = {
+          id: signInId,
+          parentId,
+          type: "text",
+          name: "Sign In Link",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + width - 210, y: y + (height - 20) / 2, width: 70, height: 20, rotation: 0 },
+          style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 400, color: "#a0a0c0", align: "left", lineHeight: 1.4 } },
+          content: { kind: "text", text: signInText },
+        };
+        generatedChildIds.push(signInId);
+      }
+
+      if (content.showCta !== false) {
+        const ctaId = crypto.randomUUID();
+        newNodes[ctaId] = {
+          id: ctaId,
+          parentId,
+          type: "rectangle",
+          name: "CTA Button",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + width - 130, y: y + (height - 34) / 2, width: 110, height: 34, rotation: 0 },
+          style: { opacity: 1, fill: "#3b82f6", cornerRadius: 6, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#ffffff", align: "center", lineHeight: 1.4 } },
+          content: { kind: "text", text: ctaText },
+        };
+        generatedChildIds.push(ctaId);
+      }
+    } else {
+      // General Feature Node Decomposition (Page Sections, Form Controls, Data Display, Overlays, Layouts)
+      if (content.badge) {
+        const badgeId = crypto.randomUUID();
+        newNodes[badgeId] = {
+          id: badgeId,
+          parentId,
+          type: "rectangle",
+          name: "Badge Tag",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + width - 90, y: y + 16, width: 70, height: 22, rotation: 0 },
+          style: { opacity: 1, fill: "rgba(59,130,246,0.2)", cornerRadius: 12, border: { color: "#3b82f6", width: 1, style: "solid" }, typography: { fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: "#60a5fa", align: "center", lineHeight: 1.4 } },
+          content: { kind: "text", text: content.badge },
+        };
+        generatedChildIds.push(badgeId);
+      }
+
+      if (content.title || content.text || node.name) {
+        const titleId = crypto.randomUUID();
+        newNodes[titleId] = {
+          id: titleId,
+          parentId,
+          type: "text",
+          name: "Heading / Title",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + 20, y: y + 20, width: width - 110, height: 32, rotation: 0 },
+          style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: "#ffffff", align: "left", lineHeight: 1.4 } },
+          content: { kind: "text", text: content.title || content.text || node.name },
+        };
+        generatedChildIds.push(titleId);
+      }
+
+      if (content.subtitle) {
+        const subId = crypto.randomUUID();
+        newNodes[subId] = {
+          id: subId,
+          parentId,
+          type: "text",
+          name: "Subtitle / Tagline",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + 20, y: y + 56, width: width - 40, height: 24, rotation: 0 },
+          style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 400, color: "#94a3b8", align: "left", lineHeight: 1.4 } },
+          content: { kind: "text", text: content.subtitle },
+        };
+        generatedChildIds.push(subId);
+      }
+
+      // Arrays (links, columns, items, trail)
+      const listItems = content.links || content.columns || content.items || content.trail || content.tabs;
+      if (Array.isArray(listItems)) {
+        listItems.forEach((item: any, idx: number) => {
+          const itemText = typeof item === "string" ? item : item.label || item.title || `Item ${idx + 1}`;
+          const itemId = crypto.randomUUID();
+          newNodes[itemId] = {
+            id: itemId,
+            parentId,
+            type: "text",
+            name: `Item - ${itemText}`,
+            order: Object.keys(newNodes).length + 1,
+            geometry: { x: x + 20 + (idx % 4) * 120, y: y + 90 + Math.floor(idx / 4) * 28, width: 110, height: 24, rotation: 0 },
+            style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#cbd5e1", align: "left", lineHeight: 1.4 } },
+            content: { kind: "text", text: itemText },
+          };
+          generatedChildIds.push(itemId);
+        });
+      }
+
+      // Primary Button
+      if (content.primaryButtonText || content.buttonText || content.confirmText) {
+        const btnId = crypto.randomUUID();
+        newNodes[btnId] = {
+          id: btnId,
+          parentId,
+          type: "rectangle",
+          name: "Primary Action Button",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + 20, y: y + height - 52, width: 120, height: 36, rotation: 0 },
+          style: { opacity: 1, fill: "#3b82f6", cornerRadius: 6, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#ffffff", align: "center", lineHeight: 1.4 } },
+          content: { kind: "text", text: content.primaryButtonText || content.buttonText || content.confirmText || "Button" },
+        };
+        generatedChildIds.push(btnId);
+      }
+
+      // Secondary Button
+      if (content.secondaryButtonText || content.cancelText) {
+        const secBtnId = crypto.randomUUID();
+        newNodes[secBtnId] = {
+          id: secBtnId,
+          parentId,
+          type: "rectangle",
+          name: "Secondary Action Button",
+          order: Object.keys(newNodes).length + 1,
+          geometry: { x: x + 150, y: y + height - 52, width: 120, height: 36, rotation: 0 },
+          style: { opacity: 1, fill: "rgba(255,255,255,0.08)", cornerRadius: 6, border: { color: "rgba(255,255,255,0.15)", width: 1, style: "solid" }, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e2e8f0", align: "center", lineHeight: 1.4 } },
+          content: { kind: "text", text: content.secondaryButtonText || content.cancelText || "Cancel" },
+        };
+        generatedChildIds.push(secBtnId);
+      }
+    }
+
+    // 3. Create Group Node
+    const groupId = crypto.randomUUID();
+    newNodes[groupId] = {
+      id: groupId,
+      parentId,
+      type: "group",
+      name: `${node.name} (Editable Parts)`,
+      order: Object.keys(newNodes).length + 1,
+      geometry: { x, y, width, height, rotation: 0 },
+      style: { opacity: 1 },
+      children: generatedChildIds,
+    };
+
+    set({
+      nodes: newNodes,
+      selectedNodeIds: new Set([groupId, ...generatedChildIds]),
       past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
       future: [],
     });

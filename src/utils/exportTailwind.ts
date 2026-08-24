@@ -1,5 +1,6 @@
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
 import { useInteractionStore } from "../store/interactionStore";
+import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 
 function getNodeWithInteractions(node: CanvasNode): CanvasNode {
   const storeInteractions = useInteractionStore.getState().interactions[node.id];
@@ -71,25 +72,19 @@ function fontSizeToTw(px: number): string {
 }
 
 /** Generate Tailwind classes for a node */
-function nodeToTailwindClasses(node: CanvasNode, nodes?: NodesById): string {
+function nodeToTailwindClasses(node: CanvasNode, nodes: NodesById): string {
+  const box = resolveNodeBox(node, nodes);
+  const s = resolveNodeStyle(node);
   const classes: string[] = ["absolute"];
-  let g = node.geometry;
-  if (node.parentId && nodes && nodes[node.parentId]) {
-    const parentGeom = nodes[node.parentId].geometry;
-    g = { ...g, x: g.x - parentGeom.x, y: g.y - parentGeom.y };
-  }
-  const s = node.style;
 
-  classes.push(`left-[${Math.round(g.x)}px]`);
-  classes.push(`top-[${Math.round(g.y)}px]`);
-  classes.push(`w-[${Math.round(g.width)}px]`);
-  classes.push(`h-[${Math.round(g.height)}px]`);
+  classes.push(`left-[${Math.round(box.relativeX)}px]`);
+  classes.push(`top-[${Math.round(box.relativeY)}px]`);
+  classes.push(`w-[${Math.round(box.width)}px]`);
+  classes.push(`h-[${Math.round(box.height)}px]`);
 
-  if (g.rotation) classes.push(`rotate-[${g.rotation}deg]`);
+  if (box.rotation) classes.push(`rotate-[${box.rotation}deg]`);
 
-  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
-
-  if (isBoxElement) {
+  if (!s.isVectorShape) {
     if (s.fill && s.fill !== "transparent") {
       classes.push(colorToTw(s.fill, "bg"));
     }
@@ -213,9 +208,7 @@ export function exportToTailwind(pages: PagesById, activePageId: string, current
   const files: ExportedTailwindFile[] = [];
 
   Object.values(allPages).forEach((page) => {
-    const topLevel = Object.values(page.nodes)
-      .filter((n) => n.parentId === null)
-      .sort((a, b) => a.order - b.order);
+    const topLevel = getRenderTree(page.nodes);
 
     const bodyHTML = topLevel.map((n) => renderNodeHTML(n, page.nodes)).join("\n");
 

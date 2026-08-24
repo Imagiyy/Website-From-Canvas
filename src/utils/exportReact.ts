@@ -1,5 +1,6 @@
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
 import { useInteractionStore } from "../store/interactionStore";
+import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 
 function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Component";
@@ -17,26 +18,25 @@ function getNodeWithInteractions(node: CanvasNode): CanvasNode {
   return node;
 }
 
-function styleToCSSObject(node: CanvasNode, nodes?: NodesById): string {
+function styleToCSSObject(node: CanvasNode, nodes: NodesById): string {
+  const box = resolveNodeBox(node, nodes);
+  const s = resolveNodeStyle(node);
   const rules: string[] = [];
-  let g = node.geometry;
-  if (node.parentId && nodes && nodes[node.parentId]) {
-    const parentGeom = nodes[node.parentId].geometry;
-    g = { ...g, x: g.x - parentGeom.x, y: g.y - parentGeom.y };
-  }
-  const s = node.style;
 
   rules.push(`position: 'absolute'`);
-  rules.push(`left: ${Math.round(g.x)}`);
-  rules.push(`top: ${Math.round(g.y)}`);
-  rules.push(`width: ${Math.round(g.width)}`);
-  rules.push(`height: ${Math.round(g.height)}`);
+  rules.push(`left: ${Math.round(box.relativeX)}`);
+  rules.push(`top: ${Math.round(box.relativeY)}`);
+  rules.push(`width: ${Math.round(box.width)}`);
+  rules.push(`height: ${Math.round(box.height)}`);
 
-  if (g.rotation) rules.push(`transform: 'rotate(${g.rotation}deg)'`);
+  if (box.rotation) rules.push(`transform: 'rotate(${box.rotation}deg)'`);
   
-  const isBoxElement = node.type === "rectangle" || node.type === "text" || node.type === "image" || node.type === "product";
-  if (isBoxElement) {
-    if (s.fill && s.fill !== "transparent") rules.push(`backgroundColor: '${s.fill}'`);
+  if (!s.isVectorShape) {
+    if (s.gradient) {
+      rules.push(`background: 'linear-gradient(${s.gradient.angle ?? 135}deg, ${s.gradient.startColor}, ${s.gradient.endColor})'`);
+    } else if (s.fill && s.fill !== "transparent") {
+      rules.push(`backgroundColor: '${s.fill}'`);
+    }
     if (s.cornerRadius) rules.push(`borderRadius: ${s.cornerRadius}`);
     if (s.border && s.border.width > 0) {
       rules.push(`border: '${s.border.width}px ${s.border.style} ${s.border.color}'`);
@@ -111,9 +111,7 @@ function renderNodeJSX(nodeRaw: CanvasNode, nodes: NodesById, level: number): st
 /** Generate a React functional component for a page */
 function generatePageComponent(pageName: string, nodes: NodesById): string {
   const componentName = safeComponentName(pageName);
-  const topLevel = Object.values(nodes)
-    .filter((n) => n.parentId === null)
-    .sort((a, b) => a.order - b.order);
+  const topLevel = getRenderTree(nodes);
 
   const jsx = topLevel.map((n) => renderNodeJSX(n, nodes, 3)).join("\n");
 

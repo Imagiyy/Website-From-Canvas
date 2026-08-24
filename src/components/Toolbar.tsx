@@ -34,6 +34,10 @@ interface Props {
   onOpenImageEditor?: () => void;
   onOpenScrollEffects?: () => void;
   onOpenTheme?: () => void;
+  onOpenMotion?: () => void;
+  onOpenLocalization?: () => void;
+  onOpenPlugins?: () => void;
+  onOpenWebhooks?: () => void;
 }
 
 const COLOR_PRESETS = [
@@ -69,6 +73,10 @@ export const Toolbar: React.FC<Props> = ({
   onOpenImageEditor,
   onOpenScrollEffects,
   onOpenTheme,
+  onOpenMotion,
+  onOpenLocalization,
+  onOpenPlugins,
+  onOpenWebhooks,
 }) => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds);
@@ -272,6 +280,18 @@ export const Toolbar: React.FC<Props> = ({
               </button>
               <button className="toolbar__icon-btn" onClick={onOpenTheme} title="Global Site Theming">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenMotion} title="Advanced Motion & Keyframe Scrubber Timelines">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenLocalization} title="Localization, Translations & RTL Layout Mirroring">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenPlugins} title="Plugin Marketplace & Developer SDK Sandbox">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              </button>
+              <button className="toolbar__icon-btn" onClick={onOpenWebhooks} title="Native Webhook & Form Action Pipelines">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               </button>
               {features.interactions && (
                 <button className="toolbar__icon-btn" onClick={onOpenInteractions} title="Interactions & Animations">

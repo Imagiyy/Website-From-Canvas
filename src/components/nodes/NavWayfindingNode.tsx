@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import type { CanvasNode } from "../../types/canvas";
+import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
 }
 
 export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
-  const { fill, cornerRadius, border, opacity } = node.style;
-  const content = node.content as any;
+  const resolvedStyle = resolveNodeStyle(node);
+  const content = resolveNodeContent(node);
 
   // Local state for interactive Play Mode testing
   const [activeTab, setActiveTab] = useState<number>(0);
@@ -18,9 +19,9 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
-    backgroundColor: fill || "#181826",
-    borderRadius: cornerRadius ? `${cornerRadius}px` : "8px",
-    border: border ? `${border.width}px ${border.style} ${border.color}` : "1px solid rgba(255,255,255,0.15)",
+    backgroundColor: resolvedStyle.fill || "#181826",
+    borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
+    border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
     opacity: opacity ?? 1,
     overflow: "hidden",
     display: "flex",
@@ -36,41 +37,54 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
   switch (node.type) {
     case "navHeader": {
       const links = content?.links || ["Home", "Features", "Pricing", "Docs"];
+      const showLogo = content?.showLogo !== false;
+      const showLinks = content?.showLinks !== false;
+      const showSignIn = content?.showSignIn !== false;
+      const showCta = content?.showCta !== false;
+
       return (
         <div style={{ ...containerStyle, flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: "0 16px" }}>
           {/* Brand Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 15, color: "#fff" }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800 }}>
-              ⚡
+          {showLogo && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 15, color: "#fff" }}>
+              <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800 }}>
+                ⚡
+              </div>
+              <span>{content?.brand || "CanvasSite"}</span>
             </div>
-            <span>{content?.brand || "CanvasSite"}</span>
-          </div>
+          )}
 
           {/* Primary Nav Links */}
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            {links.map((link: string, idx: number) => (
-              <span
-                key={link}
-                style={{
-                  color: activeTab === idx ? "#3b82f6" : "#a0a0c0",
-                  fontWeight: activeTab === idx ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  fontSize: 13,
-                }}
-                onClick={() => setActiveTab(idx)}
-              >
-                {link}
-              </span>
-            ))}
-          </div>
+          {showLinks && (
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+              {links.map((link: string, idx: number) => (
+                <span
+                  key={link + idx}
+                  style={{
+                    color: activeTab === idx ? "#3b82f6" : "#a0a0c0",
+                    fontWeight: activeTab === idx ? 600 : 400,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    fontSize: 13,
+                  }}
+                  onClick={() => setActiveTab(idx)}
+                >
+                  {link}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Top-level Utilities & Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 12, color: "#a0a0c0", cursor: "pointer" }}>Sign In</span>
-            <button style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "#fff", border: "none", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
-              Get Started
-            </button>
+            {showSignIn && (
+              <span style={{ fontSize: 12, color: "#a0a0c0", cursor: "pointer" }}>{content?.signInText || "Sign In"}</span>
+            )}
+            {showCta && (
+              <button style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "#fff", border: "none", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                {content?.ctaText || "Get Started"}
+              </button>
+            )}
           </div>
         </div>
       );

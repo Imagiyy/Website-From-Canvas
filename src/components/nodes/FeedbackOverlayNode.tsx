@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import type { CanvasNode } from "../../types/canvas";
+import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
 }
 
 export const FeedbackOverlayNode: React.FC<Props> = ({ node }) => {
-  const { fill, cornerRadius, border, opacity } = node.style;
-  const content = node.content as any;
+  const resolvedStyle = resolveNodeStyle(node);
+  const content = resolveNodeContent(node);
 
   // Local state for Play Mode interactions
   const [progressVal, setProgressVal] = useState<number>(68);
@@ -17,10 +18,10 @@ export const FeedbackOverlayNode: React.FC<Props> = ({ node }) => {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
-    backgroundColor: fill || "#181826",
-    borderRadius: cornerRadius ? `${cornerRadius}px` : "8px",
-    border: border ? `${border.width}px ${border.style} ${border.color}` : "1px solid rgba(255,255,255,0.15)",
-    opacity: isDismissed ? 0.4 : opacity ?? 1,
+    backgroundColor: resolvedStyle.fill || "#181826",
+    borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
+    border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
+    opacity: isDismissed ? 0.4 : (resolvedStyle.opacity ?? 1),
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
@@ -34,24 +35,35 @@ export const FeedbackOverlayNode: React.FC<Props> = ({ node }) => {
 
   switch (node.type) {
     case "feedbackModal": {
+      const showTitle = content?.showTitle !== false;
+      const showText = content?.showText !== false;
+      const showConfirmBtn = content?.showConfirmBtn !== false;
+      const showCancelBtn = content?.showCancelBtn !== false;
+
       return (
         <div style={{ ...containerStyle, padding: 0, position: "relative" }}>
           {/* Modal Content Window */}
           <div style={{ padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{content?.title || "Confirm Deletion"}</div>
+              {showTitle && <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{content?.title || "Confirm Deletion"}</div>}
               <span style={{ cursor: "pointer", color: "#8888a8", fontSize: 14 }} onClick={() => setIsDismissed(true)}>✕</span>
             </div>
-            <div style={{ fontSize: 12, color: "#a0a0c0", lineHeight: 1.4, margin: "8px 0" }}>
-              {content?.text || "Are you sure you want to proceed? This action will permanently remove the item."}
-            </div>
+            {showText && (
+              <div style={{ fontSize: 12, color: "#a0a0c0", lineHeight: 1.4, margin: "8px 0" }}>
+                {content?.text || "Are you sure you want to proceed? This action will permanently remove the item."}
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#a0a0c0", fontSize: 11, cursor: "pointer" }}>
-                Cancel
-              </button>
-              <button style={{ padding: "6px 12px", borderRadius: 6, background: "#ef4444", color: "#fff", border: "none", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
-                Confirm
-              </button>
+              {showCancelBtn && (
+                <button style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#a0a0c0", fontSize: 11, cursor: "pointer" }}>
+                  {content?.cancelText || "Cancel"}
+                </button>
+              )}
+              {showConfirmBtn && (
+                <button style={{ padding: "6px 12px", borderRadius: 6, background: "#ef4444", color: "#fff", border: "none", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
+                  {content?.confirmText || "Confirm"}
+                </button>
+              )}
             </div>
           </div>
         </div>
