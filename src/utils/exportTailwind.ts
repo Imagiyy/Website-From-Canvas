@@ -1,6 +1,6 @@
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
 import { useInteractionStore } from "../store/interactionStore";
-import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
+import { resolveNodeBox, resolveNodeStyle, getRenderTree } from "./nodeResolver";
 
 function getNodeWithInteractions(node: CanvasNode): CanvasNode {
   const storeInteractions = useInteractionStore.getState().interactions[node.id];

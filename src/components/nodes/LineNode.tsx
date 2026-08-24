@@ -1,8 +1,10 @@
 import React from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
+import { resolveNodeBox, resolveNodeStyle } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
 /**
@@ -11,9 +13,10 @@ interface Props {
  * Note: width and height can be negative for lines drawn upwards or leftwards.
  * Rotation is not used for lines since (width, height) delta encodes line orientation.
  */
-export const LineNode: React.FC<Props> = React.memo(({ node }) => {
-  const { geometry, style } = node;
-  const { x, y, width, height } = geometry;
+export const LineNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const { relativeX: x, relativeY: y, width, height } = box;
 
   const x1 = x;
   const y1 = y;

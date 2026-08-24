@@ -1,6 +1,7 @@
 import React from "react";
 import type { CanvasNode, NodesById, NodeId } from "../../types/canvas";
 import { NodeRenderer } from "./NodeRenderer";
+import { resolveNodeBox, resolveNodeStyle } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
@@ -9,8 +10,10 @@ interface Props {
 }
 
 export const GroupNode: React.FC<Props> = React.memo(({ node, nodes, editingNodeId }) => {
-  const { geometry, style, children = [] } = node;
-  const { x, y, width, height, rotation } = geometry;
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
+  const children = node.children || [];
   const cx = x + width / 2;
   const cy = y + height / 2;
 

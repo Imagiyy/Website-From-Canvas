@@ -57,29 +57,29 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
 
   switch (node.type) {
     case "rectangle":
-      return <RectNode node={node} />;
+      return <RectNode node={node} nodes={nodes} />;
     case "text":
-      return <TextNode node={node} isEditing={editingNodeId === node.id} />;
+      return <TextNode node={node} nodes={nodes} isEditing={editingNodeId === node.id} />;
     case "image":
-      return <ImageNode node={node} />;
+      return <ImageNode node={node} nodes={nodes} />;
     case "line":
-      return <LineNode node={node} />;
+      return <LineNode node={node} nodes={nodes} />;
     case "group":
       return <GroupNode node={node} nodes={nodes} editingNodeId={editingNodeId} />;
     case "polygon":
-      return <PolygonNode node={node} />;
+      return <PolygonNode node={node} nodes={nodes} />;
     case "circle":
-      return <CircleNode node={node} />;
+      return <CircleNode node={node} nodes={nodes} />;
     case "curve":
-      return <CurveNode node={node} />;
+      return <CurveNode node={node} nodes={nodes} />;
     case "star":
-      return <StarNode node={node} />;
+      return <StarNode node={node} nodes={nodes} />;
     case "shape3d":
-      return <Shape3DNode node={node} />;
+      return <Shape3DNode node={node} nodes={nodes} />;
     case "brush":
     case "pencil":
     case "pen":
-      return <PathNode node={node} />;
+      return <PathNode node={node} nodes={nodes} />;
 
     case "formInput":
     case "formSelect":
@@ -154,10 +154,10 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
 
     case "embedCode":
     case "embedIframe":
-      return <EmbedNode node={node} />;
+      return <EmbedNode node={node} nodes={nodes} />;
 
     case "iconElement":
-      return <IconNode node={node} />;
+      return <IconNode node={node} nodes={nodes} />;
 
     case "component":
     case "componentInstance": {
@@ -167,7 +167,7 @@ export const NodeRenderer: React.FC<Props> = React.memo(({ node, nodes, editingN
         const resolved = resolveComponentInstance(node, masterNode);
         return <NodeRenderer node={resolved} nodes={nodes} editingNodeId={editingNodeId} />;
       }
-      return <RectNode node={node} />;
+      return <RectNode node={node} nodes={nodes} />;
     }
 
     case "product": {

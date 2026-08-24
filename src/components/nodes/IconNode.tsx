@@ -1,15 +1,19 @@
 import React from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
+import { resolveNodeBox, resolveNodeStyle } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
-export const IconNode: React.FC<Props> = React.memo(({ node }) => {
-  const { x, y, width, height, rotation } = node.geometry;
+export const IconNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
   const cx = x + width / 2;
   const cy = y + height / 2;
-  const iconColor = node.iconData?.iconColor || node.style.fill || "#e4e4f0";
+  const iconColor = node.iconData?.iconColor || style.fill || "#e4e4f0";
   const svgPath = node.iconData?.svgPath || "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
 
   return (

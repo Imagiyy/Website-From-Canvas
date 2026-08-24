@@ -1,16 +1,19 @@
 import React from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
+import { resolveNodeBox, resolveNodeStyle } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
 /**
  * Renders a single rectangle as an SVG <rect> with gradient support.
  */
-export const RectNode: React.FC<Props> = React.memo(({ node }) => {
-  const { geometry, style } = node;
-  const { x, y, width, height, rotation } = geometry;
+export const RectNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
   const cx = x + width / 2;
   const cy = y + height / 2;
 

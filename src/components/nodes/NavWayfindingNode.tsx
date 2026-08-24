@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
 import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
 export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
@@ -22,7 +23,7 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
     backgroundColor: resolvedStyle.fill || "#181826",
     borderRadius: resolvedStyle.cornerRadius ? `${resolvedStyle.cornerRadius}px` : "8px",
     border: resolvedStyle.border ? `${resolvedStyle.border.width}px ${resolvedStyle.border.style} ${resolvedStyle.border.color}` : "1px solid rgba(255,255,255,0.15)",
-    opacity: opacity ?? 1,
+    opacity: resolvedStyle.opacity ?? 1,
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
@@ -36,11 +37,11 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
 
   switch (node.type) {
     case "navHeader": {
-      const links = content?.links || ["Home", "Features", "Pricing", "Docs"];
-      const showLogo = content?.showLogo !== false;
-      const showLinks = content?.showLinks !== false;
-      const showSignIn = content?.showSignIn !== false;
-      const showCta = content?.showCta !== false;
+      const links = content.links;
+      const showLogo = content.showLogo;
+      const showLinks = content.showLinks;
+      const showSignIn = content.showSignIn;
+      const showCta = content.showCta;
 
       return (
         <div style={{ ...containerStyle, flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: "0 16px" }}>
@@ -50,7 +51,7 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
               <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800 }}>
                 ⚡
               </div>
-              <span>{content?.brand || "CanvasSite"}</span>
+              <span>{content.brand}</span>
             </div>
           )}
 
@@ -78,11 +79,11 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
           {/* Top-level Utilities & Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {showSignIn && (
-              <span style={{ fontSize: 12, color: "#a0a0c0", cursor: "pointer" }}>{content?.signInText || "Sign In"}</span>
+              <span style={{ fontSize: 12, color: "#a0a0c0", cursor: "pointer" }}>{content.signInText}</span>
             )}
             {showCta && (
               <button style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "#fff", border: "none", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
-                {content?.ctaText || "Get Started"}
+                {content.ctaText}
               </button>
             )}
           </div>
@@ -91,13 +92,7 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
     }
 
     case "navSidebar": {
-      const items = content?.items || [
-        { label: "Overview", icon: "📊" },
-        { label: "Analytics", icon: "📈" },
-        { label: "Projects", icon: "📁" },
-        { label: "Customers", icon: "👥" },
-        { label: "Settings", icon: "⚙️" },
-      ];
+      const items = content.items;
       return (
         <div style={{ ...containerStyle, padding: 12, justifyContent: "flex-start", gap: 16 }}>
           {/* Header */}
@@ -105,40 +100,44 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
             <div style={{ width: 24, height: 24, borderRadius: 6, background: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
               🚀
             </div>
-            <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>Workspace</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>{content.workspaceTitle}</span>
           </div>
 
           {/* Vertical Menu Items */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-            {items.map((item: any, idx: number) => (
-              <div
-                key={item.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  background: activeSidebarItem === idx ? "rgba(139, 92, 246, 0.15)" : "transparent",
-                  color: activeSidebarItem === idx ? "#a78bfa" : "#a0a0c0",
-                  fontWeight: activeSidebarItem === idx ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                onClick={() => setActiveSidebarItem(idx)}
-              >
-                <span>{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {activeSidebarItem === idx && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#8b5cf6" }} />}
-              </div>
-            ))}
+            {items.map((item: any, idx: number) => {
+              const label = typeof item === "string" ? item : item.label;
+              const icon = typeof item === "object" ? item.icon || "📁" : "📁";
+              return (
+                <div
+                  key={label + idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    background: activeSidebarItem === idx ? "rgba(139, 92, 246, 0.15)" : "transparent",
+                    color: activeSidebarItem === idx ? "#a78bfa" : "#a0a0c0",
+                    fontWeight: activeSidebarItem === idx ? 600 : 400,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => setActiveSidebarItem(idx)}
+                >
+                  <span>{icon}</span>
+                  <span style={{ flex: 1 }}>{label}</span>
+                  {activeSidebarItem === idx && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#8b5cf6" }} />}
+                </div>
+              );
+            })}
           </div>
         </div>
       );
     }
 
     case "navBreadcrumb": {
-      const trail = content?.trail || ["Home", "Dashboard", "Analytics", "Overview"];
+      const trail = content.trail;
       return (
         <div style={{ ...containerStyle, flexDirection: "row", alignItems: "center", gap: 8, fontSize: 12 }}>
           {trail.map((crumb: string, idx: number) => (
@@ -204,7 +203,7 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
     }
 
     case "navTabs": {
-      const tabs = content?.tabs || ["Overview", "Analytics", "Reports", "Settings"];
+      const tabs = content.tabs;
       return (
         <div style={{ ...containerStyle, padding: 0, justifyContent: "flex-end" }}>
           <div style={{ display: "flex", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "0 12px" }}>
@@ -231,13 +230,7 @@ export const NavWayfindingNode: React.FC<Props> = ({ node }) => {
     }
 
     case "navToc": {
-      const sections = content?.sections || [
-        "1. Introduction",
-        "2. Key Architecture Features",
-        "3. Installation & Setup",
-        "4. Configuration Schema",
-        "5. API Reference",
-      ];
+      const sections = content.sections;
       return (
         <div style={{ ...containerStyle, padding: 12, justifyContent: "flex-start", gap: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#8888a8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>

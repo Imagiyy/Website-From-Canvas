@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
 import { resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
 export const FormControlsNode: React.FC<Props> = ({ node }) => {
@@ -38,11 +39,11 @@ export const FormControlsNode: React.FC<Props> = ({ node }) => {
 
   switch (node.type) {
     case "formInput": {
-      const inputType = content?.inputType || "text";
+      const inputType = content.inputType || "text";
       if (inputType === "textarea") {
         return (
           <div style={{ ...containerStyle, justifyContent: "flex-start" }}>
-            <label style={{ fontSize: 11, color: "#8888a8", marginBottom: 4 }}>{content?.text || "Label"}</label>
+            <label style={{ fontSize: 11, color: "#8888a8", marginBottom: 4 }}>{content.text || "Label"}</label>
             <textarea
               style={{
                 width: "100%",

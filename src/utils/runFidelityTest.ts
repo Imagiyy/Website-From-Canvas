@@ -1,9 +1,9 @@
 import type { CanvasNode, NodesById } from "../types/canvas";
 import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 import { exportSite } from "./exportSite";
-import { exportReact } from "./exportReact";
-import { exportNextjs } from "./exportNextjs";
-import { exportTailwind } from "./exportTailwind";
+import { exportToReact } from "./exportReact";
+import { exportToNextjs } from "./exportNextjs";
+import { exportToTailwind } from "./exportTailwind";
 
 console.log("=== RUNNING FIDELITY PARITY UNIT TEST SUITE ===");
 
@@ -76,13 +76,13 @@ const htmlRes = exportSite(pages, "page-1");
 console.assert(htmlRes.css.includes("left: 20px;"), "HTML exporter outputs parent-relative offset left: 20px");
 console.assert(htmlRes.css.includes("top: 20px;"), "HTML exporter outputs parent-relative offset top: 20px");
 
-const reactRes = exportReact(pages, "page-1");
+const reactRes = exportToReact(pages, "page-1", sampleNodes);
 console.assert(reactRes.length > 0, "React exporter outputs components");
 
-const nextRes = exportNextjs(pages, "page-1");
+const nextRes = exportToNextjs(pages, "page-1", sampleNodes);
 console.assert(nextRes.length > 0, "Next.js exporter outputs pages");
 
-const tailwindRes = exportTailwind(pages, "page-1");
+const tailwindRes = exportToTailwind(pages, "page-1", sampleNodes);
 console.assert(tailwindRes.length > 0, "Tailwind exporter outputs pages");
 
 console.log("✅ ALL FIDELITY PARITY UNIT TESTS PASSED SUCCESSFULLY (0 DROPPED PROPERTIES)!");

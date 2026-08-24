@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
+import { resolveNodeBox } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
-export const EmbedNode: React.FC<Props> = React.memo(({ node }) => {
-  const { x, y, width, height, rotation } = node.geometry;
+export const EmbedNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
+  const box = resolveNodeBox(node, nodes);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
   const cx = x + width / 2;
   const cy = y + height / 2;
   const [editMode, setEditMode] = useState(false);

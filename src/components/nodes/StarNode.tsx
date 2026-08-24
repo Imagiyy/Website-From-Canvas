@@ -1,8 +1,10 @@
 import React from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
+import { resolveNodeBox, resolveNodeStyle } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
 }
 
 export function getStarPoints(width: number, height: number, pointsCount: number, innerRadiusRatio: number): string {
@@ -29,9 +31,10 @@ export function getStarPoints(width: number, height: number, pointsCount: number
   return points.join(" ");
 }
 
-export const StarNode: React.FC<Props> = React.memo(({ node }) => {
-  const { geometry, style } = node;
-  const { x, y, width, height, rotation } = geometry;
+export const StarNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
   const cx = x + width / 2;
   const cy = y + height / 2;
 

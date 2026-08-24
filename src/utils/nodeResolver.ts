@@ -62,6 +62,26 @@ export interface ResolvedContent {
   showButton: boolean;
   showConfirmBtn: boolean;
   showCancelBtn: boolean;
+
+  // Form Control Fields
+  minValue: number;
+  maxValue: number;
+  step: number;
+  value: number;
+  dualValues: [number, number];
+  date: string;
+  time: string;
+  color: string;
+  tags: string[];
+  emojis: string[];
+  code: string;
+  language: string;
+  pinLength: number;
+  cardHolder: string;
+  cardNumber: string;
+  expiry: string;
+  cvv: string;
+  accordions: any[];
 }
 
 /**
@@ -246,6 +266,31 @@ export function resolveNodeContent(node: CanvasNode): ResolvedContent {
     showButton: c.showButton !== false,
     showConfirmBtn: c.showConfirmBtn !== false,
     showCancelBtn: c.showCancelBtn !== false,
+
+    // Form Control Specific Defaults
+    minValue: typeof c.minValue === "number" ? c.minValue : 0,
+    maxValue: typeof c.maxValue === "number" ? c.maxValue : 100,
+    step: typeof c.step === "number" ? c.step : 1,
+    value: typeof c.value === "number" ? c.value : 50,
+    dualValues: Array.isArray(c.dualValues) ? c.dualValues : [20, 80],
+    date: c.date || "2026-08-24",
+    time: c.time || "12:00",
+    color: c.color || "#3b82f6",
+    tags: Array.isArray(c.tags) ? c.tags : ["Design", "React", "CSS"],
+    emojis: Array.isArray(c.emojis) ? c.emojis : ["👍", "❤️", "🔥", "🚀", "🎉"],
+    code: c.code || "const greeting = 'Hello Canvas';",
+    language: c.language || "javascript",
+    pinLength: typeof c.pinLength === "number" ? c.pinLength : 4,
+    cardHolder: c.cardHolder || "Alex Rivera",
+    cardNumber: c.cardNumber || "•••• •••• •••• 4242",
+    expiry: c.expiry || "12/28",
+    cvv: c.cvv || "•••",
+    accordions: Array.isArray(c.accordions)
+      ? c.accordions
+      : [
+          { title: "Is it customizable?", content: "Yes, fully customizable styling and layout." },
+          { title: "What code formats are supported?", content: "Clean HTML/CSS, React TS, Next.js, and Tailwind CSS." },
+        ],
   };
 }
 

@@ -1,30 +1,26 @@
 import React from "react";
-import type { CanvasNode } from "../../types/canvas";
+import type { CanvasNode, NodesById } from "../../types/canvas";
 import { useCanvasStore } from "../../store/canvasStore";
+import { resolveNodeBox, resolveNodeStyle, resolveNodeContent } from "../../utils/nodeResolver";
 
 interface Props {
   node: CanvasNode;
+  nodes?: NodesById;
   isEditing?: boolean;
 }
 
-export const TextNode: React.FC<Props> = React.memo(({ node, isEditing = false }) => {
-  const { geometry, style, content } = node;
-  const { x, y, width, height, rotation } = geometry;
+export const TextNode: React.FC<Props> = React.memo(({ node, nodes = {}, isEditing = false }) => {
+  const box = resolveNodeBox(node, nodes);
+  const style = resolveNodeStyle(node);
+  const resolvedContent = resolveNodeContent(node);
+  const { relativeX: x, relativeY: y, width, height, rotation } = box;
   const cx = x + width / 2;
   const cy = y + height / 2;
 
   const setEditingNode = useCanvasStore((s) => s.setEditingNode);
 
-  const storeText = content?.kind === "text" ? content.text : "Text";
-
-  const typo = style.typography ?? {
-    fontFamily: "Inter, sans-serif",
-    fontSize: 18,
-    fontWeight: 400,
-    color: "#E4E4F0",
-    align: "left",
-    lineHeight: 1.4,
-  };
+  const storeText = resolvedContent.text || "Text";
+  const typo = style.typography!;
 
   const backgroundStyle = style.gradient
     ? `linear-gradient(${style.gradient.angle ?? 135}deg, ${style.gradient.startColor}, ${style.gradient.endColor})`

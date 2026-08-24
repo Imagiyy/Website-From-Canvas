@@ -1,6 +1,6 @@
 import type { NodesById, CanvasNode, PagesById } from "../types/canvas";
 import { useInteractionStore } from "../store/interactionStore";
-import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
+import { resolveNodeBox, resolveNodeStyle, getRenderTree } from "./nodeResolver";
 
 function safeComponentName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "").replace(/^[0-9]/, "C$&") || "Component";

@@ -1,5 +1,4 @@
-import type { NodesById, CanvasNode, Style, Geometry } from "../types/canvas";
-import { getEffectiveNode } from "./breakpoint";
+import type { NodesById, CanvasNode } from "../types/canvas";
 import { getPolygonPoints } from "../components/nodes/PolygonNode";
 import { getStarPoints } from "../components/nodes/StarNode";
 import { getPolygonVertices } from "../components/nodes/Shape3DNode";
@@ -324,49 +323,51 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formInput": {
-      const content = node.content as any;
-      const inputType = content?.inputType || "text";
+      const content = resolveNodeContent(node);
+      const inputType = content.inputType || "text";
       if (inputType === "textarea") {
-        elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-input-node" style="display: flex; flex-direction: column; padding: 8px;">\n${indent}  <label style="font-size: 11px; color: #8888a8; margin-bottom: 4px;">${escapeHtml(node.name)}</label>\n${indent}  <textarea style="width: 100%; flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; padding: 8px;" placeholder="${escapeHtml(content?.placeholder || "")}"></textarea>\n${indent}</div>`;
+        elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-input-node" style="display: flex; flex-direction: column; padding: 8px;">\n${indent}  <label style="font-size: 11px; color: #8888a8; margin-bottom: 4px;">${escapeHtml(content.text || "Label")}</label>\n${indent}  <textarea style="width: 100%; flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; padding: 8px;" placeholder="${escapeHtml(content.placeholder || "")}"></textarea>\n${indent}</div>`;
       } else {
-        elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-input-node" style="display: flex; align-items: center; padding: 0 10px;">\n${indent}  <input type="${inputType}" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; padding: 8px;" placeholder="${escapeHtml(content?.placeholder || node.name)}" />\n${indent}</div>`;
+        elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-input-node" style="display: flex; align-items: center; padding: 0 10px;">\n${indent}  <input type="${inputType}" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; padding: 8px;" placeholder="${escapeHtml(content.placeholder || content.text || "")}" />\n${indent}</div>`;
       }
       break;
     }
 
     case "formSelect": {
-      const content = (node.content as any) || {};
-      const options = content.options || ["Option 1", "Option 2", "Option 3"];
-      const optHtml = options.map((opt: string) => `<option>${escapeHtml(opt)}</option>`).join("\n" + indent + "    ");
+      const content = resolveNodeContent(node);
+      const optHtml = content.options.map((opt: string) => `<option>${escapeHtml(opt)}</option>`).join("\n" + indent + "    ");
       elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-select-node" style="display:flex; align-items:center; padding:0 8px;">\n${indent}  <select style="width:100%; background:#1e1e2e; color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px;">\n${indent}    ${optHtml}\n${indent}  </select>\n${indent}</div>`;
       break;
     }
 
     case "formCheckbox": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-checkbox-node" style="display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #fff;">\n${indent}  <input type="checkbox" id="cb-${nid}" checked />\n${indent}  <label for="cb-${nid}">${escapeHtml(node.name)}</label>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-checkbox-node" style="display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #fff;">\n${indent}  <input type="checkbox" id="cb-${nid}" checked />\n${indent}  <label for="cb-${nid}">${escapeHtml(content.text || "Checkbox")}</label>\n${indent}</div>`;
       break;
     }
 
     case "formRadio": {
-      const content = (node.content as any) || {};
-      const options = content.options || ["Option 1", "Option 2", "Option 3"];
-      const optHtml = options.map((opt: string, i: number) => `<label style="display:inline-flex; align-items:center; gap:6px; margin-right:12px; cursor:pointer;"><input type="radio" name="radio-${nid}" ${i === 0 ? 'checked' : ''} /><span>${escapeHtml(opt)}</span></label>`).join("");
+      const content = resolveNodeContent(node);
+      const optHtml = content.options.map((opt: string, i: number) => `<label style="display:inline-flex; align-items:center; gap:6px; margin-right:12px; cursor:pointer;"><input type="radio" name="radio-${nid}" ${i === 0 ? 'checked' : ''} /><span>${escapeHtml(opt)}</span></label>`).join("");
       elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-radio-node" style="display:flex; align-items:center; flex-wrap:wrap; padding:0 8px; color:#fff;">\n${indent}  ${optHtml}\n${indent}</div>`;
       break;
     }
 
     case "formSlider": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-slider-node" style="display: flex; flex-direction: column; justify-content: center; padding: 8px; color: #fff;">\n${indent}  <label style="font-size: 11px; color: #8888a8;">${escapeHtml(node.name)}</label>\n${indent}  <input type="range" min="0" max="100" value="50" style="width: 100%; accent-color: #3b82f6;" />\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-slider-node" style="display: flex; flex-direction: column; justify-content: center; padding: 8px; color: #fff;">\n${indent}  <label style="font-size: 11px; color: #8888a8;">${escapeHtml(content.text || "Slider")}</label>\n${indent}  <input type="range" min="${content.minValue}" max="${content.maxValue}" value="${content.value}" style="width: 100%; accent-color: #3b82f6;" />\n${indent}</div>`;
       break;
     }
 
     case "formDatePicker": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-date-node" style="display: flex; align-items: center; padding: 0 8px;">\n${indent}  <input type="date" style="width: 100%; background: #1e1e2e; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px;" />\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-date-node" style="display: flex; align-items: center; padding: 0 8px;">\n${indent}  <input type="date" value="${content.date}" style="width: 100%; background: #1e1e2e; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px;" />\n${indent}</div>`;
       break;
     }
 
     case "formColorPicker": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-color-node" style="display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #fff;">\n${indent}  <input type="color" value="#3b82f6" style="border: none; background: transparent; width: 32px; height: 32px; cursor: pointer;" />\n${indent}  <span>${escapeHtml(node.name)}</span>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-color-node" style="display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #fff;">\n${indent}  <input type="color" value="${content.color}" style="border: none; background: transparent; width: 32px; height: 32px; cursor: pointer;" />\n${indent}  <span>${escapeHtml(content.text || "Color")}</span>\n${indent}</div>`;
       break;
     }
 
@@ -376,7 +377,9 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formRating": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-rating-node" style="display: flex; align-items: center; gap: 4px; padding: 0 8px; color: #f59e0b; font-size: 18px;">\n${indent}  ★ ★ ★ ★ ☆\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const stars = "★ ".repeat(content.rating) + "☆ ".repeat(Math.max(0, 5 - content.rating));
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-rating-node" style="display: flex; align-items: center; gap: 4px; padding: 0 8px; color: #f59e0b; font-size: 18px;">\n${indent}  ${stars.trim()}\n${indent}</div>`;
       break;
     }
 
@@ -386,32 +389,40 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formMap": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-map-node" style="background: #111827; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ef4444; font-weight: 600; font-size: 13px;">\n${indent}  📍 ${escapeHtml(node.name)}\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-map-node" style="background: #111827; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ef4444; font-weight: 600; font-size: 13px;">\n${indent}  📍 ${escapeHtml(content.text || "Location Map")}\n${indent}</div>`;
       break;
     }
 
     case "formCodeEditor": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-code-node" style="background: #1e1e2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; font-family: monospace; font-size: 12px; color: #67e8f9; padding: 8px;">\n${indent}  <code>const app = express();</code>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-code-node" style="background: #1e1e2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; font-family: monospace; font-size: 12px; color: #67e8f9; padding: 8px;">\n${indent}  <code>${escapeHtml(content.code)}</code>\n${indent}</div>`;
       break;
     }
 
     case "formOtpPin": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-otp-node" style="display: flex; gap: 6px;">\n${indent}  <input type="text" maxlength="1" value="5" style="width: 32px; height: 36px; text-align: center; background: #1e1e2e; border: 1px solid #3b82f6; border-radius: 6px; color: #fff;" />\n${indent}  <input type="text" maxlength="1" value="9" style="width: 32px; height: 36px; text-align: center; background: #1e1e2e; border: 1px solid #3b82f6; border-radius: 6px; color: #fff;" />\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const inputs = Array.from({ length: content.pinLength }).map(() => `<input type="text" maxlength="1" value="•" style="width: 32px; height: 36px; text-align: center; background: #1e1e2e; border: 1px solid #3b82f6; border-radius: 6px; color: #fff;" />`).join("\n" + indent + "  ");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-otp-node" style="display: flex; gap: 6px;">\n${indent}  ${inputs}\n${indent}</div>`;
       break;
     }
 
     case "formCreditCard": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-card-node" style="background: #1e1e2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff;">\n${indent}  <input type="text" placeholder="4532 •••• •••• 8892" style="width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.2); color: #fff;" />\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-card-node" style="background: #1e1e2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff;">\n${indent}  <div style="font-size: 11px; color: #8888a8;">${escapeHtml(content.cardHolder)}</div>\n${indent}  <input type="text" value="${escapeHtml(content.cardNumber)}" style="width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.2); color: #fff; font-family: monospace;" />\n${indent}</div>`;
       break;
     }
 
     case "formTagInput": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-tag-node" style="display: flex; gap: 6px; flex-wrap: wrap;">\n${indent}  <span style="background: #3b82f622; border: 1px solid #3b82f6; color: #93c5fd; padding: 2px 8px; border-radius: 12px; font-size: 11px;">React ✕</span>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const tagHtml = content.tags.map((t: string) => `<span style="background: #3b82f622; border: 1px solid #3b82f6; color: #93c5fd; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${escapeHtml(t)} ✕</span>`).join("\n" + indent + "  ");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-tag-node" style="display: flex; gap: 6px; flex-wrap: wrap;">\n${indent}  ${tagHtml}\n${indent}</div>`;
       break;
     }
 
     case "formDualSlider": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-dualslider-node" style="padding: 8px; color: #fff;">\n${indent}  <input type="range" min="0" max="100" style="width: 100%; accent-color: #8b5cf6;" />\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-dualslider-node" style="padding: 8px; color: #fff; display: flex; flex-direction: column; gap: 4px;">\n${indent}  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #8888a8;"><span>Range</span><span>${content.dualValues[0]} - ${content.dualValues[1]}</span></div>\n${indent}  <input type="range" min="${content.minValue}" max="${content.maxValue}" value="${content.dualValues[1]}" style="width: 100%; accent-color: #8b5cf6;" />\n${indent}</div>`;
       break;
     }
 
@@ -426,31 +437,32 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "formEmojiPicker": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-emoji-node" style="display: flex; gap: 8px; font-size: 18px;">\n${indent}  😀 😂 ❤️ 👍 🎉 🚀\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      const emojiHtml = content.emojis.join(" ");
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-emoji-node" style="display: flex; gap: 8px; font-size: 18px;">\n${indent}  ${emojiHtml}\n${indent}</div>`;
       break;
     }
 
     case "formStepper": {
-      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-stepper-node" style="display: flex; align-items: center; gap: 8px; background: #1e1e2e; padding: 4px 10px; border-radius: 6px; color: #fff;">\n${indent}  <button>-</button> <span>1</span> <button>+</button>\n${indent}</div>`;
+      const content = resolveNodeContent(node);
+      elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-stepper-node" style="display: flex; align-items: center; gap: 8px; background: #1e1e2e; padding: 4px 10px; border-radius: 6px; color: #fff;">\n${indent}  <button>-</button> <span>${content.value}</span> <button>+</button>\n${indent}</div>`;
       break;
     }
 
     case "formSegmented":
     case "formToggleGroup": {
-      const content = (node.content as any) || {};
-      const options = content.options || ["Option 1", "Option 2", "Option 3"];
-      const optHtml = options.map((opt: string, i: number) => `<button style="background:${i === 0 ? '#3b82f6' : 'transparent'}; color:${i === 0 ? '#fff' : '#aaa'}; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;">${escapeHtml(opt)}</button>`).join("");
+      const content = resolveNodeContent(node);
+      const optHtml = content.options.map((opt: string, i: number) => `<button style="background:${i === 0 ? '#3b82f6' : 'transparent'}; color:${i === 0 ? '#fff' : '#aaa'}; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;">${escapeHtml(opt)}</button>`).join("");
       elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-toggle-node" style="display:flex; gap:4px; background:#1e1e2e; padding:4px; border-radius:6px; border:1px solid rgba(255,255,255,0.15);">\n${indent}  ${optHtml}\n${indent}</div>`;
       break;
     }
 
     case "formAccordion": {
-      const content = (node.content as any) || {};
-      const options = content.options || ["General Settings", "Security", "Notifications"];
-      const optHtml = options.map((opt: string, i: number) => `
+      const content = resolveNodeContent(node);
+      const optHtml = content.accordions.map((acc: any, i: number) => `
         <details ${i === 0 ? 'open' : ''} style="background:#1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; margin-bottom:6px; color:#fff;">
-          <summary style="cursor:pointer; font-weight:600;">${escapeHtml(opt)}</summary>
-          <p style="font-size:12px; color:#a0a0c0; margin-top:6px;">Configurable section details panel for ${escapeHtml(opt)}.</p>
+          <summary style="cursor:pointer; font-weight:600;">${escapeHtml(acc.title)}</summary>
+          <p style="font-size:12px; color:#a0a0c0; margin-top:6px;">${escapeHtml(acc.content)}</p>
         </details>
       `).join("");
       elementHTML = `${indent}<div id="node-${nid}" class="canvas-element form-accordion-container" style="display:flex; flex-direction:column;">\n${indent}  ${optHtml}\n${indent}</div>`;
@@ -478,49 +490,36 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "navHeader": {
-      const content = (node.content as any) || {};
+      const content = resolveNodeContent(node);
       const brandText = content.brand || "CanvasSite";
-      const links = content.links || ["Home", "Features", "Pricing", "Docs"];
-      const signInText = content.signInText || "Sign In";
-      const ctaText = content.ctaText || "Get Started";
+      const links = content.links;
+      const signInText = content.signInText;
+      const ctaText = content.ctaText;
 
-      const showLogo = content.showLogo !== false;
-      const showLinks = content.showLinks !== false;
-      const showSignIn = content.showSignIn !== false;
-      const showCta = content.showCta !== false;
-
-      const logoHtml = showLogo ? `<div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; color:#fff;"><div style="width:28px; height:28px; border-radius:6px; background:linear-gradient(135deg, #3b82f6, #8b5cf6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;">⚡</div><span>${escapeHtml(brandText)}</span></div>` : '';
-      const linksHtml = showLinks ? `<nav style="display:flex; gap:20px; font-size:13px;">${links.map((l: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none; font-weight:${i === 0 ? '600' : '400'};">${escapeHtml(l)}</a>`).join('')}</nav>` : '';
-      const signInHtml = showSignIn ? `<a href="#" style="font-size:12px; color:#a0a0c0; text-decoration:none;">${escapeHtml(signInText)}</a>` : '';
-      const ctaHtml = showCta ? `<button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(ctaText)}</button>` : '';
+      const logoHtml = content.showLogo ? `<div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; color:#fff;"><div style="width:28px; height:28px; border-radius:6px; background:linear-gradient(135deg, #3b82f6, #8b5cf6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800;">⚡</div><span>${escapeHtml(brandText)}</span></div>` : '';
+      const linksHtml = content.showLinks ? `<nav style="display:flex; gap:20px; font-size:13px;">${links.map((l: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none; font-weight:${i === 0 ? '600' : '400'};">${escapeHtml(l)}</a>`).join('')}</nav>` : '';
+      const signInHtml = content.showSignIn ? `<a href="#" style="font-size:12px; color:#a0a0c0; text-decoration:none;">${escapeHtml(signInText)}</a>` : '';
+      const ctaHtml = content.showCta ? `<button style="padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">${escapeHtml(ctaText)}</button>` : '';
 
       elementHTML = `${indent}<header id="node-${nid}" class="canvas-element nav-header-node" style="display:flex; align-items:center; justify-content:space-between; padding:0 16px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  ${logoHtml}\n${indent}  ${linksHtml}\n${indent}  <div style="display:flex; align-items:center; gap:10px;">${signInHtml}${ctaHtml}</div>\n${indent}</header>`;
       break;
     }
 
     case "navSidebar": {
-      const content = (node.content as any) || {};
-      const brand = content.brand || content.workspaceTitle || "Workspace";
-      const items = content.items || [
-        { label: "Overview", icon: "📊" },
-        { label: "Analytics", icon: "📈" },
-        { label: "Projects", icon: "📁" },
-        { label: "Settings", icon: "⚙️" },
-      ];
-      const itemsHtml = items.map((it: any, i: number) => {
+      const content = resolveNodeContent(node);
+      const itemsHtml = content.items.map((it: any, i: number) => {
         const lbl = typeof it === "string" ? it : it.label;
         const icn = typeof it === "object" ? it.icon || "📁" : "📁";
         return `<a href="#" style="color:${i === 0 ? '#a78bfa' : '#a0a0c0'}; padding:8px 10px; background:${i === 0 ? 'rgba(139,92,246,0.15)' : 'transparent'}; border-radius:6px; text-decoration:none; display:flex; align-items:center; gap:10px;"><span>${icn}</span><span>${escapeHtml(lbl)}</span></a>`;
       }).join("\n" + indent + "    ");
 
-      elementHTML = `${indent}<aside id="node-${nid}" class="canvas-element nav-sidebar-node" style="display:flex; flex-direction:column; gap:16px; padding:12px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); font-weight:700; font-size:13px;">🚀 ${escapeHtml(brand)}</div>\n${indent}  <nav style="display:flex; flex-direction:column; gap:4px; font-size:13px;">\n${indent}    ${itemsHtml}\n${indent}  </nav>\n${indent}</aside>`;
+      elementHTML = `${indent}<aside id="node-${nid}" class="canvas-element nav-sidebar-node" style="display:flex; flex-direction:column; gap:16px; padding:12px; background:#181826; border-radius:8px; color:#fff;">\n${indent}  <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); font-weight:700; font-size:13px;">🚀 ${escapeHtml(content.workspaceTitle || "Workspace")}</div>\n${indent}  <nav style="display:flex; flex-direction:column; gap:4px; font-size:13px;">\n${indent}    ${itemsHtml}\n${indent}  </nav>\n${indent}</aside>`;
       break;
     }
 
     case "navBreadcrumb": {
-      const content = (node.content as any) || {};
-      const trail = content.trail || ["Home", "Dashboard", "Overview"];
-      const trailHtml = trail.map((crumb: string, idx: number) => idx === trail.length - 1 ? `<span style="color:#fff; font-weight:600;">${escapeHtml(crumb)}</span>` : `<a href="#" style="color:#8888a8; text-decoration:none;">${escapeHtml(crumb)}</a>`).join(" / ");
+      const content = resolveNodeContent(node);
+      const trailHtml = content.trail.map((crumb: string, idx: number) => idx === content.trail.length - 1 ? `<span style="color:#fff; font-weight:600;">${escapeHtml(crumb)}</span>` : `<a href="#" style="color:#8888a8; text-decoration:none;">${escapeHtml(crumb)}</a>`).join(" / ");
       elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-breadcrumb-node" aria-label="Breadcrumb" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#8888a8;">\n${indent}  ${trailHtml}\n${indent}</nav>`;
       break;
     }
@@ -531,17 +530,15 @@ function renderNodeHTML(nodeRaw: CanvasNode, nodes: NodesById, indent: string = 
     }
 
     case "navTabs": {
-      const content = (node.content as any) || {};
-      const tabs = content.tabs || ["Overview", "Analytics", "Reports", "Settings"];
-      const tabsHtml = tabs.map((tab: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#8888a8'}; font-weight:${i === 0 ? '600' : '400'}; border-bottom:${i === 0 ? '2px solid #3b82f6' : 'none'}; padding:8px 12px; text-decoration:none;">${escapeHtml(tab)}</a>`).join("");
+      const content = resolveNodeContent(node);
+      const tabsHtml = content.tabs.map((tab: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#8888a8'}; font-weight:${i === 0 ? '600' : '400'}; border-bottom:${i === 0 ? '2px solid #3b82f6' : 'none'}; padding:8px 12px; text-decoration:none;">${escapeHtml(tab)}</a>`).join("");
       elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-tabs-node" style="display:flex; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding:0 12px;">\n${indent}  ${tabsHtml}\n${indent}</nav>`;
       break;
     }
 
     case "navToc": {
-      const content = (node.content as any) || {};
-      const sections = content.sections || ["1. Introduction", "2. Setup", "3. API Reference"];
-      const sectionsHtml = sections.map((sec: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none;">${escapeHtml(sec)}</a>`).join("\n" + indent + "  ");
+      const content = resolveNodeContent(node);
+      const sectionsHtml = content.sections.map((sec: string, i: number) => `<a href="#" style="color:${i === 0 ? '#3b82f6' : '#a0a0c0'}; text-decoration:none;">${escapeHtml(sec)}</a>`).join("\n" + indent + "  ");
       elementHTML = `${indent}<nav id="node-${nid}" class="canvas-element nav-toc-node" style="display:flex; flex-direction:column; gap:6px; padding:12px; background:#181826; border-radius:8px; font-size:12px;">\n${indent}  <div style="font-size:11px; font-weight:700; color:#8888a8; text-transform:uppercase;">Table of Contents</div>\n${indent}  ${sectionsHtml}\n${indent}</nav>`;
       break;
     }
@@ -906,7 +903,7 @@ body {
   cssRules.push(`/* Base Desktop Styles */`);
   allNodes.forEach((node) => {
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(node, allNodesMap, node.geometry, node.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, "desktop");
     cssRules.push(`#node-${nid} {\n  z-index: ${node.order};\n${rules}\n}`);
 
     const hoverCSS = generateNodeHoverCSS(node);
@@ -917,9 +914,8 @@ body {
 
   const tabletRules: string[] = [];
   allNodes.forEach((node) => {
-    const effectiveTablet = getEffectiveNode(node, "tablet");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(node, allNodesMap, effectiveTablet.geometry, effectiveTablet.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, "tablet");
     tabletRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 
@@ -929,9 +925,8 @@ body {
 
   const mobileRules: string[] = [];
   allNodes.forEach((node) => {
-    const effectiveMobile = getEffectiveNode(node, "mobile");
     const nid = safeId(node.id);
-    const rules = generateNodeCSSRules(node, allNodesMap, effectiveMobile.geometry, effectiveMobile.style, node.type);
+    const rules = generateNodeCSSRules(node, allNodesMap, "mobile");
     mobileRules.push(`#node-${nid} {\n${rules}\n}`);
   });
 

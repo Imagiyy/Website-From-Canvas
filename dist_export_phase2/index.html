@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- Generated & Published by CanvasSite Builder at 8/24/2026, 11:03:15 AM -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <meta name="description" content="Home page created with CanvasSite">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    function toggleVisibility(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+      }
+    }
+  </script>
+</head>
+<body style="background-color: #0f0f1a;">
+  <div class="canvas-site">
+    <main id="page-page-1" class="canvas-page" style="background-color: #0f0f1a;">
+      <div id="node-ctrl-1" class="canvas-element form-input-node" style="display: flex; align-items: center; padding: 0 10px;">
+        <input type="text" style="width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; padding: 8px;" placeholder="Enter your username..." />
+      </div>
+      <div id="node-ctrl-4" class="canvas-element form-signature-node" style="border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between;">
+        <span style="font-size: 11px; color: #8888a8;">Sign Here</span>
+        <canvas style="width: 100%; height: 80px; border-bottom: 1px dashed rgba(255,255,255,0.2);"></canvas>
+      </div>
+      <div id="node-ctrl-2" class="canvas-element form-select-node" style="display:flex; align-items:center; padding:0 8px;">
+        <select style="width:100%; background:#1e1e2e; color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px;">
+          <option>Administrator</option>
+          <option>Developer</option>
+          <option>Designer</option>
+          <option>Guest</option>
+        </select>
+      </div>
+      <div id="node-ctrl-3" class="canvas-element form-dualslider-node" style="padding: 8px; color: #fff; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #8888a8;"><span>Range</span><span>50 - 350</span></div>
+        <input type="range" min="0" max="500" value="350" style="width: 100%; accent-color: #8b5cf6;" />
+      </div>
+      <div id="node-ctrl-5" class="canvas-element form-accordion-container" style="display:flex; flex-direction:column;">
+        
+        <details open style="background:#1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; margin-bottom:6px; color:#fff;">
+          <summary style="cursor:pointer; font-weight:600;">Account Settings</summary>
+          <p style="font-size:12px; color:#a0a0c0; margin-top:6px;">Manage your profile, email, and preferences.</p>
+        </details>
+      
+        <details  style="background:#1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; margin-bottom:6px; color:#fff;">
+          <summary style="cursor:pointer; font-weight:600;">Privacy &amp; Security</summary>
+          <p style="font-size:12px; color:#a0a0c0; margin-top:6px;">Configure two-factor authentication and data access.</p>
+        </details>
+      
+      </div>
+    </main>
+  </div>
+</body>
+</html>
