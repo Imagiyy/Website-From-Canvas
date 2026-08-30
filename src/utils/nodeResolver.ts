@@ -68,6 +68,7 @@ export interface ResolvedContent {
   maxValue: number;
   step: number;
   value: number;
+  progressVal: number;
   dualValues: [number, number];
   date: string;
   time: string;

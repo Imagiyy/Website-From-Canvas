@@ -103,7 +103,7 @@ export const FeedbackOverlayNode: React.FC<Props> = ({ node }) => {
     }
 
     case "feedbackProgress": {
-      const pct = content.progressVal;
+      const pct = content.progressVal ?? progressVal;
       return (
         <div style={{ ...containerStyle, padding: 10, gap: 6 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#a0a0c0" }}>
