@@ -21,7 +21,7 @@ const AssetManager: React.FC<{ onClose: () => void; onSelectAsset?: (dataUrl: st
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { loadAssets(); }, []);
+  useEffect(() => { loadAssets(); }, [loadAssets]);
 
   const filteredAssets = getFilteredAssets();
 

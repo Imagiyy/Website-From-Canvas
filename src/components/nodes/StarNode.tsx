@@ -7,29 +7,7 @@ interface Props {
   nodes?: NodesById;
 }
 
-export function getStarPoints(width: number, height: number, pointsCount: number, innerRadiusRatio: number): string {
-  const n = Math.max(3, Math.min(20, pointsCount));
-  const cx = width / 2;
-  const cy = height / 2;
-  const outerRx = width / 2;
-  const outerRy = height / 2;
-  const innerRx = outerRx * Math.max(0.1, Math.min(0.9, innerRadiusRatio));
-  const innerRy = outerRy * Math.max(0.1, Math.min(0.9, innerRadiusRatio));
-
-  const points: string[] = [];
-  const totalVertices = n * 2;
-
-  for (let i = 0; i < totalVertices; i++) {
-    const angle = (i * Math.PI) / n - Math.PI / 2;
-    const isOuter = i % 2 === 0;
-    const rx = isOuter ? outerRx : innerRx;
-    const ry = isOuter ? outerRy : innerRy;
-    const px = cx + rx * Math.cos(angle);
-    const py = cy + ry * Math.sin(angle);
-    points.push(`${px.toFixed(2)},${py.toFixed(2)}`);
-  }
-  return points.join(" ");
-}
+import { getStarPoints } from "../../utils/shapeGeometry";
 
 export const StarNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
   const box = resolveNodeBox(node, nodes);

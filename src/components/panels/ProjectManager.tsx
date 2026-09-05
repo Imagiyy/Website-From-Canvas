@@ -26,7 +26,7 @@ const ProjectManager: React.FC<Props> = ({ onClose, onLoadProject }) => {
 
   useEffect(() => {
     refreshProjectList();
-  }, []);
+  }, [refreshProjectList]);
 
   const handleCreate = async () => {
     const name = newName.trim() || "Untitled Project";

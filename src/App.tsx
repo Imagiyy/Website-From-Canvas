@@ -55,36 +55,7 @@ export interface ContextMenuState {
 }
 
 function App() {
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isProjectsOpen, setIsProjectsOpen] = useState(false);
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
-  const [isFormsOpen, setIsFormsOpen] = useState(false);
-  const [isNavOpen, setIsNavOpen] = useState(false);
-  const [isDataOpen, setIsDataOpen] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [isLayoutOpen, setIsLayoutOpen] = useState(false);
-  const [isSectionsOpen, setIsSectionsOpen] = useState(false);
-  const [isEmbedsOpen, setIsEmbedsOpen] = useState(false);
-  const [isIconsOpen, setIsIconsOpen] = useState(false);
-  const [isTypographyOpen, setIsTypographyOpen] = useState(false);
-  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
-  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
-  const [isScrollEffectsOpen, setIsScrollEffectsOpen] = useState(false);
-  const [isThemeOpen, setIsThemeOpen] = useState(false);
-  const [isMotionOpen, setIsMotionOpen] = useState(false);
-  const [isLocalizationOpen, setIsLocalizationOpen] = useState(false);
-  const [isPluginsOpen, setIsPluginsOpen] = useState(false);
-  const [isWebhooksOpen, setIsWebhooksOpen] = useState(false);
-  const [isComponentsOpen, setIsComponentsOpen] = useState(false);
-  const [isTokensOpen, setIsTokensOpen] = useState(false);
-  const [isAssetsOpen, setIsAssetsOpen] = useState(false);
-  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-  const [isInteractionsOpen, setIsInteractionsOpen] = useState(false);
-  const [isSEOOpen, setIsSEOOpen] = useState(false);
-  const [isCMSOpen, setIsCMSOpen] = useState(false);
-  const [isEcommerceOpen, setIsEcommerceOpen] = useState(false);
-  const [isDeployOpen, setIsDeployOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const features = getEnabledFeatures();
@@ -123,42 +94,44 @@ function App() {
       style: { opacity: 1 },
       content: { kind: "image", assetUrl: dataUrl, fit: "cover" },
     });
-    setIsAssetsOpen(false);
+    setActivePanel(null);
   };
+
+  const closePanel = () => setActivePanel(null);
 
   return (
     <div className="app">
       <Toolbar
-        onExportClick={() => setIsExportOpen(true)}
-        onOpenProjects={() => setIsProjectsOpen(true)}
-        onOpenTemplates={() => setIsTemplatesOpen(true)}
-        onOpenForms={() => setIsFormsOpen(true)}
-        onOpenNavigation={() => setIsNavOpen(true)}
-        onOpenDataDisplay={() => setIsDataOpen(true)}
-        onOpenFeedback={() => setIsFeedbackOpen(true)}
-        onOpenLayoutAction={() => setIsLayoutOpen(true)}
-        onOpenComponents={() => setIsComponentsOpen(true)}
-        onOpenTokens={() => setIsTokensOpen(true)}
-        onOpenAssets={() => setIsAssetsOpen(true)}
-        onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
-        onOpenComments={() => setIsCommentsOpen(true)}
-        onOpenInteractions={() => setIsInteractionsOpen(true)}
-        onOpenSEO={() => setIsSEOOpen(true)}
-        onOpenCMS={() => setIsCMSOpen(true)}
-        onOpenEcommerce={() => setIsEcommerceOpen(true)}
-        onOpenDeploy={() => setIsDeployOpen(true)}
-        onOpenSections={() => setIsSectionsOpen(true)}
-        onOpenEmbeds={() => setIsEmbedsOpen(true)}
-        onOpenIcons={() => setIsIconsOpen(true)}
-        onOpenTypography={() => setIsTypographyOpen(true)}
-        onOpenAccessibility={() => setIsAccessibilityOpen(true)}
-        onOpenImageEditor={() => setIsImageEditorOpen(true)}
-        onOpenScrollEffects={() => setIsScrollEffectsOpen(true)}
-        onOpenTheme={() => setIsThemeOpen(true)}
-        onOpenMotion={() => setIsMotionOpen(true)}
-        onOpenLocalization={() => setIsLocalizationOpen(true)}
-        onOpenPlugins={() => setIsPluginsOpen(true)}
-        onOpenWebhooks={() => setIsWebhooksOpen(true)}
+        onExportClick={() => setActivePanel("export")}
+        onOpenProjects={() => setActivePanel("projects")}
+        onOpenTemplates={() => setActivePanel("templates")}
+        onOpenForms={() => setActivePanel("forms")}
+        onOpenNavigation={() => setActivePanel("nav")}
+        onOpenDataDisplay={() => setActivePanel("data")}
+        onOpenFeedback={() => setActivePanel("feedback")}
+        onOpenLayoutAction={() => setActivePanel("layout")}
+        onOpenComponents={() => setActivePanel("components")}
+        onOpenTokens={() => setActivePanel("tokens")}
+        onOpenAssets={() => setActivePanel("assets")}
+        onOpenVersionHistory={() => setActivePanel("versionHistory")}
+        onOpenComments={() => setActivePanel("comments")}
+        onOpenInteractions={() => setActivePanel("interactions")}
+        onOpenSEO={() => setActivePanel("seo")}
+        onOpenCMS={() => setActivePanel("cms")}
+        onOpenEcommerce={() => setActivePanel("ecommerce")}
+        onOpenDeploy={() => setActivePanel("deploy")}
+        onOpenSections={() => setActivePanel("sections")}
+        onOpenEmbeds={() => setActivePanel("embeds")}
+        onOpenIcons={() => setActivePanel("icons")}
+        onOpenTypography={() => setActivePanel("typography")}
+        onOpenAccessibility={() => setActivePanel("accessibility")}
+        onOpenImageEditor={() => setActivePanel("imageEditor")}
+        onOpenScrollEffects={() => setActivePanel("scrollEffects")}
+        onOpenTheme={() => setActivePanel("theme")}
+        onOpenMotion={() => setActivePanel("motion")}
+        onOpenLocalization={() => setActivePanel("localization")}
+        onOpenPlugins={() => setActivePanel("plugins")}
+        onOpenWebhooks={() => setActivePanel("webhooks")}
       />
 
       <div className="app__body" style={{ position: "relative" }}>
@@ -197,7 +170,7 @@ function App() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveComment(c.id);
-                  setIsCommentsOpen(true);
+                  setActivePanel("comments");
                 }}
                 title={`${c.author}: ${c.text}`}
               >
@@ -213,36 +186,36 @@ function App() {
       <StatusBar />
 
       {/* Feature Modals */}
-      <ExportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
-      <TemplateModal isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} />
-      <FormControlsPanel isOpen={isFormsOpen} onClose={() => setIsFormsOpen(false)} />
-      <NavigationPanel isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} />
-      <DataDisplayPanel isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
-      <FeedbackPanel isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
-      <LayoutActionPanel isOpen={isLayoutOpen} onClose={() => setIsLayoutOpen(false)} />
-      <PageSectionsPanel isOpen={isSectionsOpen} onClose={() => setIsSectionsOpen(false)} />
-      <EmbedPanel isOpen={isEmbedsOpen} onClose={() => setIsEmbedsOpen(false)} />
-      <IconLibraryPanel isOpen={isIconsOpen} onClose={() => setIsIconsOpen(false)} />
-      <TypographyPanel isOpen={isTypographyOpen} onClose={() => setIsTypographyOpen(false)} />
-      <AccessibilityPanel isOpen={isAccessibilityOpen} onClose={() => setIsAccessibilityOpen(false)} />
-      <ImageEditorPanel isOpen={isImageEditorOpen} onClose={() => setIsImageEditorOpen(false)} />
-      <ScrollEffectsPanel isOpen={isScrollEffectsOpen} onClose={() => setIsScrollEffectsOpen(false)} />
-      <ThemePanel isOpen={isThemeOpen} onClose={() => setIsThemeOpen(false)} />
-      <MotionTimelinePanel isOpen={isMotionOpen} onClose={() => setIsMotionOpen(false)} />
-      <LocalizationPanel isOpen={isLocalizationOpen} onClose={() => setIsLocalizationOpen(false)} />
-      <PluginMarketplacePanel isOpen={isPluginsOpen} onClose={() => setIsPluginsOpen(false)} />
-      <WebhookPanel isOpen={isWebhooksOpen} onClose={() => setIsWebhooksOpen(false)} />
-      {features.projects && isProjectsOpen && <ProjectManager onClose={() => setIsProjectsOpen(false)} onLoadProject={handleLoadProject} />}
-      {features.componentLibrary && isComponentsOpen && <ComponentLibraryPanel onClose={() => setIsComponentsOpen(false)} />}
-      {features.designTokens && isTokensOpen && <DesignTokensPanel onClose={() => setIsTokensOpen(false)} />}
-      {features.assetManager && isAssetsOpen && <AssetManager onClose={() => setIsAssetsOpen(false)} onSelectAsset={handleSelectAsset} />}
-      {features.versionHistory && isVersionHistoryOpen && <VersionHistory onClose={() => setIsVersionHistoryOpen(false)} onRestore={handleRestoreVersion} />}
-      {features.comments && isCommentsOpen && <CommentsPanel onClose={() => setIsCommentsOpen(false)} />}
-      {features.interactions && isInteractionsOpen && <InteractionsPanel onClose={() => setIsInteractionsOpen(false)} />}
-      {features.seo && isSEOOpen && <SEOPanel onClose={() => setIsSEOOpen(false)} />}
-      {features.cms && isCMSOpen && <CMSPanel onClose={() => setIsCMSOpen(false)} />}
-      {features.ecommerce && isEcommerceOpen && <EcommercePanel onClose={() => setIsEcommerceOpen(false)} />}
-      {features.deployment && isDeployOpen && <DeployPanel onClose={() => setIsDeployOpen(false)} />}
+      <ExportModal isOpen={activePanel === "export"} onClose={closePanel} />
+      <TemplateModal isOpen={activePanel === "templates"} onClose={closePanel} />
+      <FormControlsPanel isOpen={activePanel === "forms"} onClose={closePanel} />
+      <NavigationPanel isOpen={activePanel === "nav"} onClose={closePanel} />
+      <DataDisplayPanel isOpen={activePanel === "data"} onClose={closePanel} />
+      <FeedbackPanel isOpen={activePanel === "feedback"} onClose={closePanel} />
+      <LayoutActionPanel isOpen={activePanel === "layout"} onClose={closePanel} />
+      <PageSectionsPanel isOpen={activePanel === "sections"} onClose={closePanel} />
+      <EmbedPanel isOpen={activePanel === "embeds"} onClose={closePanel} />
+      <IconLibraryPanel isOpen={activePanel === "icons"} onClose={closePanel} />
+      <TypographyPanel isOpen={activePanel === "typography"} onClose={closePanel} />
+      <AccessibilityPanel isOpen={activePanel === "accessibility"} onClose={closePanel} />
+      <ImageEditorPanel isOpen={activePanel === "imageEditor"} onClose={closePanel} />
+      <ScrollEffectsPanel isOpen={activePanel === "scrollEffects"} onClose={closePanel} />
+      <ThemePanel isOpen={activePanel === "theme"} onClose={closePanel} />
+      <MotionTimelinePanel isOpen={activePanel === "motion"} onClose={closePanel} />
+      <LocalizationPanel isOpen={activePanel === "localization"} onClose={closePanel} />
+      <PluginMarketplacePanel isOpen={activePanel === "plugins"} onClose={closePanel} />
+      <WebhookPanel isOpen={activePanel === "webhooks"} onClose={closePanel} />
+      {features.projects && activePanel === "projects" && <ProjectManager onClose={closePanel} onLoadProject={handleLoadProject} />}
+      {features.componentLibrary && activePanel === "components" && <ComponentLibraryPanel onClose={closePanel} />}
+      {features.designTokens && activePanel === "tokens" && <DesignTokensPanel onClose={closePanel} />}
+      {features.assetManager && activePanel === "assets" && <AssetManager onClose={closePanel} onSelectAsset={handleSelectAsset} />}
+      {features.versionHistory && activePanel === "versionHistory" && <VersionHistory onClose={closePanel} onRestore={handleRestoreVersion} />}
+      {features.comments && activePanel === "comments" && <CommentsPanel onClose={closePanel} />}
+      {features.interactions && activePanel === "interactions" && <InteractionsPanel onClose={closePanel} />}
+      {features.seo && activePanel === "seo" && <SEOPanel onClose={closePanel} />}
+      {features.cms && activePanel === "cms" && <CMSPanel onClose={closePanel} />}
+      {features.ecommerce && activePanel === "ecommerce" && <EcommercePanel onClose={closePanel} />}
+      {features.deployment && activePanel === "deploy" && <DeployPanel onClose={closePanel} />}
       {features.collaboration && isShareDialogOpen && <ShareDialog onClose={closeShareDialog} />}
       {features.auth && <AuthModal />}
 

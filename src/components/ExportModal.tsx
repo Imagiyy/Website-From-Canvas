@@ -27,7 +27,6 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [imageScale, setImageScale] = useState<number>(2);
-  const [buildTimestamp, setBuildTimestamp] = useState<number>(Date.now());
 
   // Ensure active page in pages map always has the latest canvas nodes
   const syncedPages = useMemo(() => {
@@ -75,7 +74,7 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
       default:
         return [];
     }
-  }, [format, syncedPages, activePageId, nodes, pageSEO, isOpen, buildTimestamp]);
+  }, [format, syncedPages, activePageId, nodes, pageSEO, isOpen]);
 
   // Set default selected file whenever exportFiles changes
   const activeFile = useMemo(() => {
@@ -154,14 +153,6 @@ export const ExportModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              className="panel-btn panel-btn--small"
-              onClick={() => setBuildTimestamp(Date.now())}
-              title="Force re-generate fresh code bundle matching exact current canvas state"
-              style={{ fontSize: 11 }}
-            >
-              🔄 Refresh Build Code
-            </button>
             <button className="export-modal__close-btn" onClick={onClose}>
               ✕
             </button>

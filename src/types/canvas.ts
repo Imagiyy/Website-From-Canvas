@@ -2,7 +2,6 @@
 // Supports: components, pen tool, effects, layout, interactions, comments, CMS, e-commerce, SEO
 
 export type NodeId = string;
-export type BreakpointId = "desktop" | "tablet" | "mobile";
 
 export type ElementType =
   | "rectangle"
@@ -85,6 +84,8 @@ export type ElementType =
   | "iconElement";
 
 export type BreakpointKey = "desktop" | "tablet" | "mobile";
+/** @deprecated Use BreakpointKey instead */
+export type BreakpointId = BreakpointKey;
 
 export const BREAKPOINT_WIDTHS: Record<BreakpointKey, number | null> = {
   desktop: 1200,
@@ -92,11 +93,7 @@ export const BREAKPOINT_WIDTHS: Record<BreakpointKey, number | null> = {
   mobile: 375,
 };
 
-export const DEFAULT_PAGE_HEIGHTS: Record<BreakpointKey, number> = {
-  desktop: 1200,
-  tablet: 1400,
-  mobile: 1600,
-};
+// DEFAULT_PAGE_HEIGHTS canonical source: ../services/editorState.ts
 
 export interface Geometry {
   x: number;

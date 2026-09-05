@@ -451,7 +451,7 @@ export function useCanvasPointer(
         }
       }
     },
-    [screenToCanvas, fileInputRef]
+    [screenToCanvas, fileInputRef, onDrawPreviewUpdate]
   );
 
   // -----------------------------------------------------------------------

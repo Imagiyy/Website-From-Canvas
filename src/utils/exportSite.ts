@@ -1,7 +1,5 @@
 import type { NodesById, CanvasNode } from "../types/canvas";
-import { getPolygonPoints } from "../components/nodes/PolygonNode";
-import { getStarPoints } from "../components/nodes/StarNode";
-import { getPolygonVertices } from "../components/nodes/Shape3DNode";
+import { getPolygonPoints, getStarPoints, getPolygonVertices } from "./shapeGeometry";
 import { useInteractionStore } from "../store/interactionStore";
 import { resolveNodeBox, resolveNodeStyle, resolveNodeContent, getRenderTree } from "./nodeResolver";
 

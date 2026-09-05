@@ -7,27 +7,7 @@ interface Props {
   nodes?: NodesById;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-export function getPolygonVertices(width: number, height: number, sides: number): Point[] {
-  const n = Math.max(3, Math.min(30, sides));
-  const cx = width / 2;
-  const cy = height / 2;
-  const rx = width / 2;
-  const ry = height / 2;
-
-  const vertices: Point[] = [];
-  for (let i = 0; i < n; i++) {
-    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-    const px = cx + rx * Math.cos(angle);
-    const py = cy + ry * Math.sin(angle);
-    vertices.push({ x: Number(px.toFixed(2)), y: Number(py.toFixed(2)) });
-  }
-  return vertices;
-}
+import { getPolygonVertices } from "../../utils/shapeGeometry";
 
 export const Shape3DNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
   const box = resolveNodeBox(node, nodes);

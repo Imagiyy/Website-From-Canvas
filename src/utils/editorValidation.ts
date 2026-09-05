@@ -1,4 +1,4 @@
-import type { CanvasNode, NodesById } from "../types/canvas";
+import type { NodesById } from "../types/canvas";
 
 export function isValidNodeMap(nodes: unknown): nodes is NodesById {
   if (!nodes || typeof nodes !== "object") return false;
@@ -29,11 +29,3 @@ export function sanitizeNodeChildren(nodes: NodesById): NodesById {
   return next;
 }
 
-export function hasCircularGroupLink(nodes: NodesById, nodeId: string, seen = new Set<string>()): boolean {
-  if (seen.has(nodeId)) return true;
-  seen.add(nodeId);
-
-  const node = nodes[nodeId] as CanvasNode | undefined;
-  if (!node || node.parentId == null) return false;
-  return hasCircularGroupLink(nodes, node.parentId, seen);
-}

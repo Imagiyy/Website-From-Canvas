@@ -10,23 +10,7 @@ interface Props {
 /**
  * Generates point coordinates string for a regular polygon with N sides centered inside bounding box.
  */
-export function getPolygonPoints(width: number, height: number, sides: number): string {
-  const n = Math.max(3, Math.min(30, sides));
-  const cx = width / 2;
-  const cy = height / 2;
-  const rx = width / 2;
-  const ry = height / 2;
-
-  const points: string[] = [];
-  // Start from top point (angle -PI/2)
-  for (let i = 0; i < n; i++) {
-    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-    const px = cx + rx * Math.cos(angle);
-    const py = cy + ry * Math.sin(angle);
-    points.push(`${px.toFixed(2)},${py.toFixed(2)}`);
-  }
-  return points.join(" ");
-}
+import { getPolygonPoints } from "../../utils/shapeGeometry";
 
 export const PolygonNode: React.FC<Props> = React.memo(({ node, nodes = {} }) => {
   const box = resolveNodeBox(node, nodes);

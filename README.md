@@ -60,6 +60,8 @@ Export fully operational codebases directly from your browser in one click:
 
 ## 🏗️ Architecture & State Model
 
+### System Architecture Overview
+
 ```mermaid
 flowchart TD
     subgraph UI ["User Interface Layer"]
@@ -67,36 +69,110 @@ flowchart TD
         CanvasView["Interactive Canvas"]
         LayerTree["Layer Panel"]
         PropertyInspector["Property Inspector"]
+        Panels["Feature Panels & Modals"]
     end
 
     subgraph Store ["Zustand Store Engine"]
         CanvasStore["canvasStore.ts (Canonical State)"]
         ProjectStore["projectStore.ts (Projects)"]
         DesignTokenStore["designTokenStore.ts (Tokens)"]
+        AssetStore["assetStore.ts (Asset Catalog)"]
         CommentStore["commentStore.ts (Annotations)"]
+        OtherStores["SEO / CMS / Ecommerce / Plugin / Motion Stores"]
     end
 
     subgraph Services ["Core Logic & Solvers"]
         NodeResolver["nodeResolver.ts (Relative Geometry Solver)"]
         Persistence["editorPersistence.ts (Storage & Migration)"]
+        PointerMachine["useCanvasPointer.ts (Interaction State Machine)"]
         Exporters["Export Engines (HTML / React / Next.js / Tailwind)"]
     end
 
-    CanvasView <--> CanvasStore
+    CanvasView <--> PointerMachine
+    PointerMachine <--> CanvasStore
     LayerTree <--> CanvasStore
     PropertyInspector <--> CanvasStore
     Toolbar <--> CanvasStore
+    Panels <--> OtherStores
 
     CanvasStore <--> NodeResolver
     CanvasStore <--> Persistence
     CanvasStore --> Exporters
 ```
 
-### Key Engineering Highlights
-1. **Single Source of Truth**: Unified store architecture prevents state drift across page switching, node selection, and persistence.
-2. **Relative Parent-Child Layout Engine**: Pure functional geometry solver (`nodeResolver.ts`) computes precise local bounding boxes for nested groups, guaranteeing exact parity between canvas rendering and code export.
-3. **Decoupled Persistence Service**: `editorPersistence.ts` separates browser `localStorage` serialization from active state, featuring validation and automatic schema migration.
-4. **Feature Flag Engine**: Gated capability system (`productScope.ts`) allows runtime toggling of extended modules (auth, collaboration, CMS, webhooks).
+---
+
+### 1. Canonical State Model (`src/store/canvasStore.ts`)
+The entire visual editor is driven by a single canonical state model powered by Zustand. This eliminates state duplication and data drift across canvas views, layer trees, property inspectors, and export pipelines.
+
+- **Flat Node Lookup Graph (`NodesById`)**: Canvas nodes are stored in a flat key-value dictionary (`Record<string, CanvasNode>`). Tree hierarchy is maintained through `parentId` references and parent `children` ID arrays.
+- **Page Collection Router (`PagesById`)**: Multi-page projects store page models indexed by `pageId`, each containing node graphs, metadata, and page slug definitions.
+- **Viewport State (`Viewport`)**: Manages pan offsets (`panX`, `panY`), scale zoom levels (`zoom`), and current breakpoint overrides (`desktop` | `tablet` | `mobile`).
+- **Bounded History Stack (`HistoryStack`)**: Manages undo/redo snapshot trees with bounded stack size limits, batching fast pointer movements (such as dragging or resizing) into cohesive history steps.
+- **Selection & Grouping State**: Manages multi-node selection arrays (`selectedNodeIds`) and enforces group invariants (preventing cyclic parent loops and invalid child nesting).
+
+---
+
+### 2. Data Persistence & Migration Service (`src/services/editorPersistence.ts`)
+Persistence is cleanly decoupled from component behavior:
+- **Storage Serialization Isolation**: Direct `localStorage` calls are isolated behind `editorPersistence.ts`. Component handlers never directly touch browser storage.
+- **Schema Validation & Migration**: Incoming project files and stored sessions pass through an automated validation phase. Outdated project schemas undergo sequential migration to current data contracts.
+- **State Sanitization**: Derived UI flags (such as context menu state or active drag previews) are stripped prior to serialization, storing only raw canonical models.
+
+---
+
+### 3. Relative Geometry & Layout Resolver (`src/utils/nodeResolver.ts`)
+Canvas rendering and code generation rely on a pure functional layout solver (`nodeResolver.ts`):
+- **Relative Box Resolution (`resolveNodeBox`)**: Converts absolute canvas coordinates into parent-relative offsets when nodes are grouped inside container nodes (`isChildOfGroup`), preventing double-offset rendering bugs.
+- **Breakpoint Overrides**: Resolves geometry and styling properties based on the active breakpoint (`desktop`, `tablet`, or `mobile`), applying responsive layout overrides dynamically.
+- **Style & Content Resolution (`resolveNodeStyle`, `resolveNodeContent`)**: Normalizes style properties (fills, strokes, typography, borders, shadows) and content props (text strings, image URLs, switch flags) across all node types.
+- **Render Tree Hierarchy (`getRenderTree`)**: Recursively sorts top-level and nested child nodes by z-index order (`order`), building the render hierarchy.
+
+---
+
+### 4. Specialized Auxiliary Stores Ecosystem
+Beyond the core canvas, specialized Zustand stores handle domain-specific feature modules:
+
+| Store File | Responsibilities |
+| :--- | :--- |
+| **`projectStore.ts`** | Project CRUD operations, project switching, local storage persistence, and export preset metadata. |
+| **`designTokenStore.ts`** | Centralized design system tokens (color palettes, font stacks, font sizes, line heights, radii, shadow presets). |
+| **`assetStore.ts`** | Media catalog management, image file uploading, data-URL encoding, and asset selection listeners. |
+| **`componentStore.ts`** | Reusable UI component definitions, master component templates, and instance bindings. |
+| **`commentStore.ts`** | Coordinates canvas coordinate pin comments, comment threads, author avatar colors, and resolution states. |
+| **`seoStore.ts`** | Open Graph metadata, title/description templates, canonical URL targets, and JSON-LD structured schemas. |
+| **`cmsStore.ts`** | Content collections, custom field schemas (text, image, boolean), and dynamic node content bindings. |
+| **`ecommerceStore.ts`** | Product catalog items, shopping cart drawer state, currency formatting, and checkout modal workflows. |
+| **`motionStore.ts`** | Keyframe animation timelines, animation triggers (hover/click/scroll), easing functions, and scroll effects. |
+| **`localizationStore.ts`** | Translation key-value dictionaries, locale selection (`en`, `es`, `fr`, `de`, `ja`), and dynamic text rendering. |
+| **`pluginStore.ts`** | Plugin marketplace registry, installed extensions, webhook event triggers, and third-party script handlers. |
+| **`collaborationStore.ts`** | Multiplayer peer cursor streams, share link generation, and mock socket state tracking. |
+| **`versionStore.ts`** | Immutable project checkpoint snapshots, version history timeline, and snapshot restoration handlers. |
+
+---
+
+### 5. Interaction Pointer Machine (`src/hooks/useCanvasPointer.ts`)
+Canvas interaction logic is encapsulated in a dedicated pointer event state machine:
+- **Interaction Modes**: Manages active mouse/touch state modes (`select`, `pan`, `draw-rect`, `draw-line`, `drag-node`, `resize-node`, `rotate-node`).
+- **Snapping Engine Integration (`src/utils/snapping.ts`)**: Evaluates node bounding boxes during drag and resize operations, snapping nodes to centerlines, edges, and equal distribution spacing guides.
+- **Keyboard Listener (`src/hooks/useKeyboard.ts`)**: Intercepts shortcuts (`Cmd+Z`, `Cmd+Shift+Z`, `Cmd+G`, `Cmd+Shift+G`, `Delete`, arrow nudges) and dispatches clean store actions.
+
+---
+
+### 6. Multi-Framework Export Engine (`src/utils/export*.ts`)
+Code exporters transform the internal node graph into clean, zero-dependency source code:
+- **`exportSite.ts`**: Generates semantic HTML5 and clean CSS3 stylesheets, outputting clean relative layout rules.
+- **`exportReact.ts`**: Emits typed React 19 JSX components with clean prop signatures.
+- **`exportNextjs.ts`**: Generates Next.js App Router project structures (`app/page.tsx`, CSS modules, layout files).
+- **`exportTailwind.ts`**: Maps visual styles (colors, flex layouts, spacing, rounded corners) into clean Tailwind CSS utility classes.
+- **`exportZip.ts`**: Bundles generated source code, CSS, assets, and project files into a downloadable ZIP archive using `JSZip`.
+
+---
+
+### 7. Feature Flag & Scope Control (`src/config/productScope.ts`)
+To prevent over-scoping and maintain browser performance:
+- **Runtime Flag Gating**: `getEnabledFeatures()` evaluates active feature flags.
+- **Modular MVP Isolation**: Core MVP features (Canvas, Layers, Properties, Projects, Exporters) remain active by default, while extended features (Auth, Collaboration, CMS, Ecommerce, Webhooks) are cleanly isolated behind toggles.
 
 ---
 

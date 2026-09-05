@@ -192,7 +192,7 @@ const PASTE_OFFSET = 10;
 
 function snapshot(state: CanvasStoreState): Snapshot {
   return {
-    nodes: { ...state.nodes },
+    nodes: structuredClone(state.nodes),
     selectedNodeIds: Array.from(state.selectedNodeIds).filter((id) => state.nodes[id]),
     nextNumber: { ...state.nextNumber },
   };
@@ -230,7 +230,27 @@ function normalizeOrders(nodes: NodesById, parentId: NodeId | null = null): void
     .filter((n) => n.parentId === parentId)
     .sort((a, b) => a.order - b.order);
   siblings.forEach((node, i) => {
-    node.order = i;
+    if (node.order !== i) {
+      nodes[node.id] = { ...node, order: i };
+    }
+  });
+}
+
+/**
+ * Helper to push an undo snapshot and set new state in one call.
+ * Eliminates the 42x repeated undo boilerplate pattern.
+ */
+function setWithUndo(
+  get: () => CanvasStoreState,
+  set: (partial: Partial<CanvasStoreState>) => void,
+  changes: Partial<CanvasStoreState>
+): void {
+  const state = get();
+  const snap = snapshot(state);
+  set({
+    ...changes,
+    past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
+    future: [],
   });
 }
 
@@ -297,8 +317,16 @@ let lastNudgeTime = 0;
 
 // ---------------------------------------------------------------------------
 // Auto-save helpers
-// ---------------------------------------------------------------------------
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = null;
+    }
+  });
+}
 
 function saveToLocalStorage(state: CanvasStoreState) {
   const safeNodes = sanitizeNodeChildren(isValidNodeMap(state.nodes) ? state.nodes : {});
@@ -609,12 +637,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // History helpers
   // -----------------------------------------------------------------------
   pushUndo: () => {
-    const state = get();
-    const snap = snapshot(state);
-    set({
-      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
-      future: [],
-    });
+    setWithUndo(get, set, {});
   },
 
   undo: () => {
@@ -652,12 +675,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // -----------------------------------------------------------------------
   addNode: (node) => {
     const state = get();
-    const snap = snapshot(state);
-    set({
+    setWithUndo(get, set, {
       nodes: { ...state.nodes, [node.id]: node },
       selectedNodeIds: new Set([node.id]),
-      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
-      future: [],
     });
   },
 
@@ -665,14 +685,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const state = get();
     const node = state.nodes[id];
     if (!node) return;
-    const snap = snapshot(state);
-    set({
+    setWithUndo(get, set, {
       nodes: {
         ...state.nodes,
         [id]: { ...node, name },
       },
-      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
-      future: [],
     });
   },
 
@@ -680,7 +697,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const state = get();
     const node = state.nodes[id];
     if (!node) return;
-    const snap = snapshot(state);
 
     if (state.activeBreakpoint !== "desktop") {
       const bp = state.activeBreakpoint;
@@ -688,7 +704,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       const currentOverride = bpOverrides[bp] ?? {};
       const currentStyle = currentOverride.style ?? {};
 
-      set({
+      setWithUndo(get, set, {
         nodes: {
           ...state.nodes,
           [id]: {
@@ -702,13 +718,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
             },
           },
         },
-        past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
-        future: [],
       });
       return;
     }
 
-    set({
+    setWithUndo(get, set, {
       nodes: {
         ...state.nodes,
         [id]: {
@@ -716,8 +730,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           style: { ...node.style, ...partial },
         },
       },
-      past: [...state.past.slice(-(HISTORY_LIMIT - 1)), snap],
-      future: [],
     });
   },
 
@@ -1112,7 +1124,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       if (node?.parentId && newNodes[node.parentId]) {
         const parent = newNodes[node.parentId];
         if (parent.children) {
-          parent.children = parent.children.filter((cId) => cId !== id);
+          newNodes[node.parentId] = {
+            ...parent,
+            children: parent.children.filter((cId) => cId !== id),
+          };
         }
       }
       delete newNodes[id];
@@ -1486,7 +1501,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId,
       type: "rectangle",
       name: `${node.name} (Background Frame)`,
-      order: Object.keys(newNodes).length + 1,
+      order: maxOrder(newNodes, parentId) + 1,
       geometry: { x, y, width, height, rotation: node.geometry.rotation },
       style: { ...node.style, fill: node.style.fill || "#181826", cornerRadius: node.style.cornerRadius || 8 },
     };
@@ -1506,7 +1521,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "text",
           name: "Brand Logo",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + 16, y: y + (height - 24) / 2, width: 140, height: 24, rotation: 0 },
           style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 700, color: "#ffffff", align: "left", lineHeight: 1.4 } },
           content: { kind: "text", text: `⚡ ${brandText}` },
@@ -1522,7 +1537,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
             parentId,
             type: "text",
             name: `Link - ${link}`,
-            order: Object.keys(newNodes).length + 1,
+            order: maxOrder(newNodes, parentId) + 1,
             geometry: { x: x + 200 + idx * 85, y: y + (height - 20) / 2, width: 75, height: 20, rotation: 0 },
             style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: idx === 0 ? 600 : 400, color: idx === 0 ? "#3b82f6" : "#a0a0c0", align: "left", lineHeight: 1.4 } },
             content: { kind: "text", text: link },
@@ -1538,7 +1553,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "text",
           name: "Sign In Link",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + width - 210, y: y + (height - 20) / 2, width: 70, height: 20, rotation: 0 },
           style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 400, color: "#a0a0c0", align: "left", lineHeight: 1.4 } },
           content: { kind: "text", text: signInText },
@@ -1553,7 +1568,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "rectangle",
           name: "CTA Button",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + width - 130, y: y + (height - 34) / 2, width: 110, height: 34, rotation: 0 },
           style: { opacity: 1, fill: "#3b82f6", cornerRadius: 6, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#ffffff", align: "center", lineHeight: 1.4 } },
           content: { kind: "text", text: ctaText },
@@ -1569,7 +1584,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "rectangle",
           name: "Badge Tag",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + width - 90, y: y + 16, width: 70, height: 22, rotation: 0 },
           style: { opacity: 1, fill: "rgba(59,130,246,0.2)", cornerRadius: 12, border: { color: "#3b82f6", width: 1, style: "solid" }, typography: { fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: "#60a5fa", align: "center", lineHeight: 1.4 } },
           content: { kind: "text", text: content.badge },
@@ -1584,7 +1599,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "text",
           name: "Heading / Title",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + 20, y: y + 20, width: width - 110, height: 32, rotation: 0 },
           style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: "#ffffff", align: "left", lineHeight: 1.4 } },
           content: { kind: "text", text: content.title || content.text || node.name },
@@ -1599,7 +1614,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "text",
           name: "Subtitle / Tagline",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + 20, y: y + 56, width: width - 40, height: 24, rotation: 0 },
           style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 400, color: "#94a3b8", align: "left", lineHeight: 1.4 } },
           content: { kind: "text", text: content.subtitle },
@@ -1618,7 +1633,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
             parentId,
             type: "text",
             name: `Item - ${itemText}`,
-            order: Object.keys(newNodes).length + 1,
+            order: maxOrder(newNodes, parentId) + 1,
             geometry: { x: x + 20 + (idx % 4) * 120, y: y + 90 + Math.floor(idx / 4) * 28, width: 110, height: 24, rotation: 0 },
             style: { opacity: 1, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#cbd5e1", align: "left", lineHeight: 1.4 } },
             content: { kind: "text", text: itemText },
@@ -1635,7 +1650,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "rectangle",
           name: "Primary Action Button",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + 20, y: y + height - 52, width: 120, height: 36, rotation: 0 },
           style: { opacity: 1, fill: "#3b82f6", cornerRadius: 6, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#ffffff", align: "center", lineHeight: 1.4 } },
           content: { kind: "text", text: content.primaryButtonText || content.buttonText || content.confirmText || "Button" },
@@ -1651,7 +1666,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           parentId,
           type: "rectangle",
           name: "Secondary Action Button",
-          order: Object.keys(newNodes).length + 1,
+          order: maxOrder(newNodes, parentId) + 1,
           geometry: { x: x + 150, y: y + height - 52, width: 120, height: 36, rotation: 0 },
           style: { opacity: 1, fill: "rgba(255,255,255,0.08)", cornerRadius: 6, border: { color: "rgba(255,255,255,0.15)", width: 1, style: "solid" }, typography: { fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e2e8f0", align: "center", lineHeight: 1.4 } },
           content: { kind: "text", text: content.secondaryButtonText || content.cancelText || "Cancel" },
@@ -1667,7 +1682,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId,
       type: "group",
       name: `${node.name} (Editable Parts)`,
-      order: Object.keys(newNodes).length + 1,
+      order: maxOrder(newNodes, parentId) + 1,
       geometry: { x, y, width, height, rotation: 0 },
       style: { opacity: 1 },
       children: generatedChildIds,
@@ -2330,7 +2345,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 200 + Math.random() * 40,
         y: 200 + Math.random() * 40,
@@ -2374,7 +2389,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 100 + Math.random() * 40,
         y: 100 + Math.random() * 40,
@@ -2418,7 +2433,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 120 + Math.random() * 40,
         y: 120 + Math.random() * 40,
@@ -2462,7 +2477,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 140 + Math.random() * 40,
         y: 140 + Math.random() * 40,
@@ -2506,7 +2521,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 160 + Math.random() * 40,
         y: 160 + Math.random() * 40,
@@ -2548,7 +2563,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       parentId: null,
       type,
       name,
-      order: Object.keys(state.nodes).length + 1,
+      order: maxOrder(state.nodes) + 1,
       geometry: {
         x: 100 + Math.random() * 40,
         y: 100 + Math.random() * 40,

@@ -18,7 +18,7 @@ const VersionHistory: React.FC<{ onClose: () => void; onRestore: (pages: import(
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
-  useEffect(() => { loadCheckpoints(); }, []);
+  useEffect(() => { loadCheckpoints(); }, [loadCheckpoints]);
 
   const handleCreate = async () => {
     const name = newName.trim() || `Checkpoint ${checkpoints.length + 1}`;
